@@ -82,6 +82,16 @@ class UpkeepTest {
         assertEquals(List.of(chunk(2, 0), chunk(1, 0)), Upkeep.furthestRemovable(state, cities, centers, 4));
     }
 
+    @Test
+    void shortfallDoesNotReleaseTheCore() {
+        Set<ChunkRef> cities = Set.of(chunk(0, 0));
+        Set<ChunkRef> state = Set.of(chunk(1, 0), chunk(2, 0), chunk(3, 0));
+        Set<ChunkRef> core = Set.of(chunk(1, 0), chunk(2, 0));
+        List<Upkeep.CityPoint> centers = List.of(new Upkeep.CityPoint("minecraft:overworld", 0, 0));
+
+        assertEquals(List.of(chunk(3, 0)), Upkeep.furthestRemovable(state, core, cities, centers, 4));
+    }
+
     private static ChunkRef chunk(int x, int z) {
         return new ChunkRef("minecraft:overworld", x, z);
     }

@@ -1,6 +1,7 @@
 package com.mrzeyner.colonynations.compat.minecolonies;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -16,6 +17,7 @@ import com.mrzeyner.colonynations.data.PendingNotice;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.territory.ChunkRef;
+import com.mrzeyner.colonynations.territory.CityCore;
 import com.mrzeyner.colonynations.territory.Upkeep;
 
 import net.minecraft.commands.CommandSourceStack;
@@ -83,18 +85,25 @@ public final class NationUpkeep {
         int perChunk = Config.UPKEEP_PER_CHUNK.get();
         int releasePerDay = Config.UPKEEP_RELEASE_PER_DAY.get();
         boolean dirty = false;
+        int width = Config.FOUNDING_RING_CHUNKS.get();
         for (Nation nation : List.copyOf(data.registry().all())) {
-            int chunks = data.territory().count(nation.id());
-            if (chunks == 0) {
+            Set<ChunkRef> state = new HashSet<>(data.territory().chunks(nation.id()));
+            if (state.isEmpty()) {
                 continue;
             }
-            long cost = (long) chunks * perChunk;
+            Survey survey = survey(data, nation, gameTime);
+            Set<ChunkRef> core = CityCore.among(state, List.of(survey.cities()), width);
+            int annexed = state.size() - core.size();
+            if (annexed == 0) {
+                continue;
+            }
+            long cost = (long) annexed * perChunk;
             Upkeep.Charge charge = Upkeep.charge(nation.treasury(), cost);
             List<ChunkRef> released = List.of();
             if (charge.shortfall()) {
-                Survey survey = survey(data, nation, gameTime);
                 released = Upkeep.furthestRemovable(
-                        data.territory().chunks(nation.id()),
+                        state,
+                        core,
                         Set.copyOf(survey.cities()),
                         survey.centers(),
                         releasePerDay);
@@ -110,7 +119,7 @@ public final class NationUpkeep {
                 data.registry().setTreasury(nation.id(), nation.treasury() - charge.paid());
             }
             dirty = true;
-            tell(server, data, nation, charge, chunks, released);
+            tell(server, data, nation, charge, annexed, released);
         }
         if (dirty) {
             data.setDirty();

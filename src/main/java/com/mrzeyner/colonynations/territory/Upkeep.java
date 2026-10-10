@@ -56,16 +56,29 @@ public final class Upkeep {
      * A chunk is skipped when removing it would leave other state land unable to reach a city.
      */
     public static List<ChunkRef> furthestRemovable(Set<ChunkRef> state, Set<ChunkRef> cities, List<CityPoint> centers, int limit) {
+        return furthestRemovable(state, Set.of(), cities, centers, limit);
+    }
+
+    /**
+     * @param immovable state chunks that stay, such as the city core. They still connect other land to cities.
+     */
+    public static List<ChunkRef> furthestRemovable(
+            Set<ChunkRef> state,
+            Set<ChunkRef> immovable,
+            Set<ChunkRef> cities,
+            List<CityPoint> centers,
+            int limit) {
         if (limit <= 0 || state.isEmpty()) {
             return List.of();
         }
+        Set<ChunkRef> locked = immovable == null ? Set.of() : immovable;
         List<ChunkRef> released = new ArrayList<>();
         Set<ChunkRef> current = new HashSet<>(state);
         for (int i = 0; i < limit && !current.isEmpty(); i++) {
             ChunkRef pick = null;
             long bestDistance = -1L;
             for (ChunkRef chunk : current) {
-                if (!TerritoryLink.staysConnected(current, cities, chunk)) {
+                if (locked.contains(chunk) || !TerritoryLink.staysConnected(current, cities, chunk)) {
                     continue;
                 }
                 long distance = distanceToNearest(chunk, centers);

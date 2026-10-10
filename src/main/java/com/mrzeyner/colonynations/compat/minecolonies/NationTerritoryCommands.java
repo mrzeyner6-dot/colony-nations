@@ -21,6 +21,7 @@ import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.territory.AnnexMath;
 import com.mrzeyner.colonynations.territory.ChunkDistance;
 import com.mrzeyner.colonynations.territory.ChunkRef;
+import com.mrzeyner.colonynations.territory.CityCore;
 import com.mrzeyner.colonynations.territory.NearestCity;
 import com.mrzeyner.colonynations.territory.TerritoryLink;
 
@@ -82,7 +83,11 @@ public final class NationTerritoryCommands {
                 nation.cities().size(),
                 Config.ADMIN_PER_TOWN_HALL_LEVEL.get(),
                 survey.townHallLevels());
-        if (data.territory().count(nation.id()) >= limit) {
+        Set<ChunkRef> state = data.territory().chunks(nation.id());
+        int width = Config.FOUNDING_RING_CHUNKS.get();
+        int annexed = state.size() - CityCore.among(state, List.of(survey.cities()), width).size();
+        boolean joiningCore = !CityCore.among(Set.of(here), List.of(survey.cities()), width).isEmpty();
+        if (!joiningCore && annexed >= limit) {
             return Messages.error(source, "command.colony_nations.annex.limit", limit);
         }
         if (nation.treasury() < price) {
@@ -115,7 +120,11 @@ public final class NationTerritoryCommands {
             return Messages.error(source, "command.colony_nations.unannex.not_yours");
         }
         Survey survey = survey(nation, source.getLevel().getGameTime());
-        if (!TerritoryLink.staysConnected(data.territory().chunks(nation.id()), survey.cities(), here)) {
+        Set<ChunkRef> state = data.territory().chunks(nation.id());
+        if (CityCore.among(Set.of(here), List.of(survey.cities()), Config.FOUNDING_RING_CHUNKS.get()).contains(here)) {
+            return Messages.error(source, "command.colony_nations.unannex.core");
+        }
+        if (!TerritoryLink.staysConnected(state, survey.cities(), here)) {
             return Messages.error(source, "command.colony_nations.unannex.disconnects");
         }
         data.territory().release(here);
@@ -136,18 +145,20 @@ public final class NationTerritoryCommands {
         }
         NationSavedData data = NationSavedData.get(source.getServer());
         Survey survey = survey(nation, source.getLevel().getGameTime());
-        int state = data.territory().count(nation.id());
+        Set<ChunkRef> state = data.territory().chunks(nation.id());
+        int core = CityCore.among(state, List.of(survey.cities()), Config.FOUNDING_RING_CHUNKS.get()).size();
+        int annexed = state.size() - core;
         int limit = AnnexMath.limit(
                 Config.ADMIN_BASE.get(),
                 Config.ADMIN_PER_CITY.get(),
                 nation.cities().size(),
                 Config.ADMIN_PER_TOWN_HALL_LEVEL.get(),
                 survey.townHallLevels());
-        long upkeep = (long) state * Config.UPKEEP_PER_CHUNK.get();
+        long upkeep = (long) annexed * Config.UPKEEP_PER_CHUNK.get();
         Messages.header(source, "command.colony_nations.territory.header", nation.name());
-        Messages.line(source, "command.colony_nations.territory.state", state);
         Messages.line(source, "command.colony_nations.territory.city", survey.cities().size());
-        Messages.line(source, "command.colony_nations.territory.limit", limit);
+        Messages.line(source, "command.colony_nations.territory.core", core);
+        Messages.line(source, "command.colony_nations.territory.annexed", annexed, limit);
         Messages.line(source, "command.colony_nations.territory.upkeep", upkeep);
         return 1;
     }
