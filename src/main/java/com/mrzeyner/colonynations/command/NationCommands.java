@@ -16,6 +16,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.compat.minecolonies.NationCityCommands;
+import com.mrzeyner.colonynations.compat.minecolonies.NationTerritoryCommands;
 import com.mrzeyner.colonynations.compat.numismatics.NationTreasuryCommands;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.CityRef;
@@ -72,6 +73,9 @@ public final class NationCommands {
                         .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
                                 .executes(NationCityCommands::capital)))
                 .then(NationTreasuryCommands.branch())
+                .then(Commands.literal("annex").executes(NationTerritoryCommands::annex))
+                .then(Commands.literal("unannex").executes(NationTerritoryCommands::unannex))
+                .then(Commands.literal("territory").executes(NationTerritoryCommands::territory))
                 .then(Commands.literal("admin")
                         .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("name", StringArgumentType.string())

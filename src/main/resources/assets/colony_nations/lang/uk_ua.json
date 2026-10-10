@@ -47,5 +47,21 @@
   "command.colony_nations.save.unreadable": "Дані держав не прочитано (версія %s), зміни заблоковано, див. лог сервера.",
   "command.colony_nations.found.foreign": "Ця земля належить іншій державі.",
   "command.colony_nations.found.wilderness": "Перше місто можна заснувати лише на нічийній землі.",
-  "command.colony_nations.found.state_land": "Нове місто можна заснувати лише на землі своєї держави."
+  "command.colony_nations.found.state_land": "Нове місто можна заснувати лише на землі своєї держави.",
+  "command.colony_nations.annex.success": "Чанк анексовано за %s spur. Скарбниця: %s.",
+  "command.colony_nations.annex.yours": "Цей чанк уже земля вашої держави.",
+  "command.colony_nations.annex.foreign": "Цей чанк належить іншій державі.",
+  "command.colony_nations.annex.city": "Цей чанк є частиною міста.",
+  "command.colony_nations.annex.not_adjacent": "Цей чанк не межує із землею вашої держави.",
+  "command.colony_nations.annex.no_city": "У цьому вимірі немає вашого міста, від якого міряти відстань.",
+  "command.colony_nations.annex.limit": "Держава досягла межі землі: %s чанків.",
+  "command.colony_nations.annex.poor": "Анексія цього чанка коштує %s spur. Скарбниця: %s.",
+  "command.colony_nations.unannex.success": "Чанк відпущено. Гроші не повертаються.",
+  "command.colony_nations.unannex.not_yours": "Цей чанк не є землею вашої держави.",
+  "command.colony_nations.unannex.disconnects": "Якщо відпустити цей чанк, частина землі втратить зв'язок із містами.",
+  "command.colony_nations.territory.header": "Територія держави %s",
+  "command.colony_nations.territory.state": "Державна земля: %s",
+  "command.colony_nations.territory.city": "Міська земля: %s",
+  "command.colony_nations.territory.limit": "Межа: %s",
+  "command.colony_nations.territory.upkeep": "Щоденне утримання: %s spur"
 }

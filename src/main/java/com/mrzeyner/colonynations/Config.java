@@ -25,6 +25,30 @@ public final class Config {
             .comment("Width, in chunks, of the free ring annexed around a colony when it joins a nation.")
             .defineInRange("foundingRingChunks", 2, 0, 16);
 
+    public static final ModConfigSpec.IntValue ANNEX_BASE_COST = BUILDER
+            .comment("Base annex cost in spurs, before distance.")
+            .defineInRange("annexBaseCost", 50, 0, 1_000_000);
+
+    public static final ModConfigSpec.IntValue ANNEX_COST_PER_CHUNK_DISTANCE = BUILDER
+            .comment("Extra annex cost in spurs for each chunk of distance to the nearest city.")
+            .defineInRange("annexCostPerChunkDistance", 10, 0, 1_000_000);
+
+    public static final ModConfigSpec.IntValue ADMIN_BASE = BUILDER
+            .comment("State-land chunk limit before cities and town hall levels are added.")
+            .defineInRange("adminBase", 30, 0, 1_000_000);
+
+    public static final ModConfigSpec.IntValue ADMIN_PER_CITY = BUILDER
+            .comment("Extra state-land chunks allowed per city.")
+            .defineInRange("adminPerCity", 20, 0, 1_000_000);
+
+    public static final ModConfigSpec.IntValue ADMIN_PER_TOWN_HALL_LEVEL = BUILDER
+            .comment("Extra state-land chunks allowed per town hall level, summed across cities.")
+            .defineInRange("adminPerTownHallLevel", 5, 0, 1_000_000);
+
+    public static final ModConfigSpec.IntValue UPKEEP_PER_CHUNK = BUILDER
+            .comment("Daily upkeep in spurs for each state-land chunk. City land is free.")
+            .defineInRange("upkeepPerChunk", 2, 0, 1_000_000);
+
     static {
         BUILDER.pop();
     }

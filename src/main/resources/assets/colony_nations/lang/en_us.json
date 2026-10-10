@@ -47,5 +47,21 @@
   "command.colony_nations.save.unreadable": "Nation data could not be read (version %s). Changes are blocked; see the server log.",
   "command.colony_nations.found.foreign": "That land belongs to another nation.",
   "command.colony_nations.found.wilderness": "Your first city has to be founded on unclaimed land.",
-  "command.colony_nations.found.state_land": "A new city has to be founded on your nation's land."
+  "command.colony_nations.found.state_land": "A new city has to be founded on your nation's land.",
+  "command.colony_nations.annex.success": "Annexed this chunk for %s spurs. Treasury: %s.",
+  "command.colony_nations.annex.yours": "This chunk is already your nation's land.",
+  "command.colony_nations.annex.foreign": "This chunk belongs to another nation.",
+  "command.colony_nations.annex.city": "This chunk is part of a city.",
+  "command.colony_nations.annex.not_adjacent": "This chunk does not touch your nation's land.",
+  "command.colony_nations.annex.no_city": "There is no city of yours in this dimension to measure from.",
+  "command.colony_nations.annex.limit": "Your nation is at its land limit of %s chunks.",
+  "command.colony_nations.annex.poor": "Annexing this chunk costs %s spurs. Treasury: %s.",
+  "command.colony_nations.unannex.success": "Released this chunk. The cost is not refunded.",
+  "command.colony_nations.unannex.not_yours": "This chunk is not your nation's land.",
+  "command.colony_nations.unannex.disconnects": "Releasing this chunk would cut other land off from your cities.",
+  "command.colony_nations.territory.header": "Territory of %s",
+  "command.colony_nations.territory.state": "State land: %s",
+  "command.colony_nations.territory.city": "City land: %s",
+  "command.colony_nations.territory.limit": "Limit: %s",
+  "command.colony_nations.territory.upkeep": "Daily upkeep: %s spurs"
 }
