@@ -43,7 +43,7 @@
 - У грі перевіряти нічого.
 
 ### T3. Підключити MineColonies
-Статус: TODO
+Статус: DONE
 
 - Підключити MineColonies для NeoForge 1.21.1 як залежність компіляції й запуску, плюс runtime-залежності: Structurize, BlockUI, Domum Ornamentum, MultiPiston.
 - Спершу спробуй офіційний maven LDT Team (дивись README / build-файли репозиторію `ldtteam/minecolonies`). Якщо не виходить — Curse Maven (`https://cursemaven.com`, `curse.maven:<slug>-<projectId>:<fileId>`, fileId береться зі сторінки файлу на CurseForge; приклад: `curse.maven:minecolonies-245506:7629602`).
@@ -51,6 +51,18 @@
 - Додати залежність MineColonies у `neoforge.mods.toml` (type `required`, side `BOTH`).
 
 Готово, коли: `build` проходить; `runServer` стартує з MineColonies у списку модів; у звіті — точні координати й версії всіх залежностей.
+
+Звіт:
+- Репозиторій: офіційний LDT Team maven `https://ldtteam.jfrog.io/ldtteam/modding/` (з `settings.gradle` репозиторію `ldtteam/minecolonies`, гілка `version/1.21`). Curse Maven не знадобився.
+- Версії взято з Gradle module metadata релізу `minecolonies` `1.1.1403-1.21.1` (той самий jar, що на CurseForge, 4 Oct 2026). Усі з `transitive = false`, щоб не підтягнути JEI і старіші blockui/domum зі structurize/multipiston.
+  - `com.ldtteam:minecolonies:1.1.1403-1.21.1` — `implementation` (компіляція і запуск).
+  - `com.ldtteam:structurize:1.0.832-1.21.1-snapshot` — `runtimeOnly`, mod id `structurize`.
+  - `com.ldtteam:blockui:1.0.199-1.21.1-snapshot` — `runtimeOnly`, mod id `blockui`.
+  - `com.ldtteam:domum-ornamentum:1.0.223-snapshot` — `runtimeOnly`, mod id `domum_ornamentum` (jar з classifier `main` через module metadata).
+  - `com.ldtteam:multipiston:1.2.51-1.21.1-snapshot` — `runtimeOnly`, mod id `multipiston`. У `neoforge.mods.toml` MineColonies його немає серед required (CurseForge і ця задача його вимагають); сервер з ним стартує.
+- У `neoforge.mods.toml`: `minecolonies`, type `required`, `versionRange=[1.1.1403-1.21.1,)`, ordering `AFTER`, side `BOTH`.
+- `./gradlew build` пройшов. `runServer` дійшов до `Done`. Список модів: Colony Nations 0.1.0, Domum Ornamentum 1.0.223-snapshot, MineColonies 1.1.1403-1.21.1, Multi-Piston 1.2.51-1.21.1-snapshot, NeoForge 21.1.256, Structurize 1.0.832-1.21.1-snapshot, UI Library Mod 1.0.199-1.21.1-snapshot.
+- На DEBUG MineColonies ловить `IllegalStateException` для loot table `minecolonies:entities/cavalry_horse` під час compat discovery. Процес після цього лишається живим. У грі перевірити, чи попередження повторюється і чи не ламає рецепти або рейди.
 
 ### T4. Дослідити API MineColonies (без коду мода)
 Статус: TODO

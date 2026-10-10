@@ -27,7 +27,13 @@ sourceSets.main.resources {
 }
 
 repositories {
-    // Add here additional repositories if required by some of the dependencies below.
+    maven {
+        name = "LDTTeam"
+        url = "https://ldtteam.jfrog.io/ldtteam/modding/"
+        content {
+            includeGroup "com.ldtteam"
+        }
+    }
 }
 
 base {
@@ -121,6 +127,22 @@ dependencies {
     // Gradle 9 no longer puts the JUnit Platform launcher on the test runtime classpath.
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+    implementation("com.ldtteam:minecolonies:${minecolonies_version}") {
+        transitive = false
+    }
+    runtimeOnly("com.ldtteam:structurize:${structurize_version}") {
+        transitive = false
+    }
+    runtimeOnly("com.ldtteam:blockui:${blockui_version}") {
+        transitive = false
+    }
+    runtimeOnly("com.ldtteam:domum-ornamentum:${domum_ornamentum_version}") {
+        transitive = false
+    }
+    runtimeOnly("com.ldtteam:multipiston:${multipiston_version}") {
+        transitive = false
+    }
+
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
     // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"
@@ -156,6 +178,7 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             mod_name               : mod_name,
             mod_license            : mod_license,
             mod_version            : mod_version,
+            minecolonies_version   : minecolonies_version,
     ]
     inputs.properties replaceProperties
     expand replaceProperties
