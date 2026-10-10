@@ -184,7 +184,7 @@
 - У грі: гравець із державою ставить другу ратушу — колонія створюється і з'являється в `/nation city list`; гравець без держави другу колонію заснувати не може.
 
 ### T9. Скарбниця (монети Numismatics)
-Статус: TODO
+Статус: DONE
 
 - Підключити Create і Create: Numismatics (NeoForge 1.21.1) як залежності; координати — офіційний maven або Modrinth maven (`https://api.modrinth.com/maven`, `maven.modrinth:<slug>:<version>`).
 - `compat/numismatics/`: перетворення стаку монет у вартість у spur і назад (номінали брати з API/енуму Numismatics, не хардкодити).
@@ -192,6 +192,19 @@
 - Логіка розміну — чистий клас з JUnit-тестами.
 
 Готово, коли: `build` проходить; тести розміну проходять; у звіті — що перевірити в грі.
+
+Звіт:
+- Create `6.0.10+mc1.21.1` і Numismatics `1.1.0+neoforge-mc1.21.1` з Modrinth maven (`maven.modrinth`). Версії й діапазони — у `gradle.properties`. Numismatics вимагає Create `[6.0.10,6.1.0)`. Ponder, Flywheel і Registrate приїжджають jar-in-jar усередині Create, окремими залежностями їх не додавав.
+- Номінал у spur береться з енуму `Coin.value` (`dev.ithundxr.createnumismatics.content.backend.Coin`), не з констант у коді. `NumismaticsCoins` рахує стак у руці і збирає зворотні `ItemStack` (ріже по max stack size).
+- Розмін — чистий `economy/CoinChange`: сума монет у spur і виплата найбільшими номіналами. Якщо немає монети в 1 spur, залишок лишається в скарбниці. У Numismatics 1.1.0 spur = 1, тож виплата точна. Тести: `CoinChangeTest`.
+- Команди власника держави (суми в spur):
+  - `/nation treasury` → `Treasury of Rome: 0 spurs.`
+  - `/nation treasury deposit` — увесь стак з основної руки. Не монета → `Hold Numismatics coins in your main hand.`
+  - `/nation treasury withdraw 100` → `Withdrew 100 spurs from Rome. Treasury: …` і монети найбільшими номіналами (для 100: 1 cog, 2 sprocket, 4 spur).
+  - Сума більша за баланс → `Rome only has N spurs in the treasury.`
+  - Якщо інвентар повний, решта монет падає біля гравця.
+- `./gradlew build` пройшов, тести розміну теж. `runServer` дійшов до `Done`. У списку модів: Create 6.0.10, Numismatics 1.1.0, Ponder, Flywheel.
+- У грі: заснувати державу; взяти в руку стак монет Numismatics; `/nation treasury deposit`; `/nation treasury`; `/nation treasury withdraw 100`; перевірити, що баланс збігається і що гравець без держави команди не проходить.
 
 ### ЧЕКАЄ ТЕСТУ — Rib перевіряє етап 1 у грі
 Зупинись тут. Claude допише нові задачі після тесту.

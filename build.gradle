@@ -34,6 +34,17 @@ repositories {
             includeGroup "com.ldtteam"
         }
     }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = "https://api.modrinth.com/maven"
+            }
+        }
+        filter {
+            includeGroup "maven.modrinth"
+        }
+    }
 }
 
 base {
@@ -143,6 +154,13 @@ dependencies {
         transitive = false
     }
 
+    implementation("maven.modrinth:create:${create_version}") {
+        transitive = false
+    }
+    implementation("maven.modrinth:numismatics:${numismatics_version}") {
+        transitive = false
+    }
+
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
     // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"
@@ -179,6 +197,8 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             mod_license            : mod_license,
             mod_version            : mod_version,
             minecolonies_version   : minecolonies_version,
+            create_version_range   : create_version_range,
+            numismatics_version_range: numismatics_version_range,
     ]
     inputs.properties replaceProperties
     expand replaceProperties

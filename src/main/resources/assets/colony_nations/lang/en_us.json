@@ -33,5 +33,12 @@
   "command.colony_nations.city.capital_mark": " — capital",
   "command.colony_nations.city.no_mark": "",
   "command.colony_nations.capital.success": "Capital of %s is now %s (#%s).",
-  "command.colony_nations.capital.not_in_nation": "Colony #%s is not part of %s."
+  "command.colony_nations.capital.not_in_nation": "Colony #%s is not part of %s.",
+  "command.colony_nations.treasury.balance": "Treasury of %s: %s spurs.",
+  "command.colony_nations.treasury.deposit.empty": "Hold Numismatics coins in your main hand.",
+  "command.colony_nations.treasury.deposit.success": "Deposited %s spurs into %s. Treasury: %s.",
+  "command.colony_nations.treasury.withdraw.success": "Withdrew %s spurs from %s. Treasury: %s.",
+  "command.colony_nations.treasury.withdraw.insufficient": "%s only has %s spurs in the treasury.",
+  "command.colony_nations.treasury.withdraw.unpayable": "That amount cannot be paid in the current coins.",
+  "command.colony_nations.treasury.overflow": "That deposit does not fit in the treasury."
 }

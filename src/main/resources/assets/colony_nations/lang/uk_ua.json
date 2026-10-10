@@ -33,5 +33,12 @@
   "command.colony_nations.city.capital_mark": " — столиця",
   "command.colony_nations.city.no_mark": "",
   "command.colony_nations.capital.success": "Столиця держави %s тепер %s (#%s).",
-  "command.colony_nations.capital.not_in_nation": "Колонія #%s не входить до %s."
+  "command.colony_nations.capital.not_in_nation": "Колонія #%s не входить до %s.",
+  "command.colony_nations.treasury.balance": "Скарбниця %s: %s spur.",
+  "command.colony_nations.treasury.deposit.empty": "Візьміть монети Numismatics в основну руку.",
+  "command.colony_nations.treasury.deposit.success": "Внесено %s spur до %s. Скарбниця: %s.",
+  "command.colony_nations.treasury.withdraw.success": "Знято %s spur з %s. Скарбниця: %s.",
+  "command.colony_nations.treasury.withdraw.insufficient": "У скарбниці %s лише %s spur.",
+  "command.colony_nations.treasury.withdraw.unpayable": "Цю суму не можна видати наявними монетами.",
+  "command.colony_nations.treasury.overflow": "Скарбниця не вміщує такий внесок."
 }
