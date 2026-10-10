@@ -92,6 +92,7 @@ public final class NationTerritoryCommands {
         long updated = nation.treasury() - price;
         data.registry().setTreasury(nation.id(), updated);
         data.setDirty();
+        TerritorySync.stateClaim(source.getServer(), here, nation);
         return Messages.success(source, "command.colony_nations.annex.success", price, updated);
     }
 
@@ -119,6 +120,7 @@ public final class NationTerritoryCommands {
         }
         data.territory().release(here);
         data.setDirty();
+        TerritorySync.release(source.getServer(), here);
         return Messages.success(source, "command.colony_nations.unannex.success");
     }
 

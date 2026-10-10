@@ -18,6 +18,7 @@ import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.compat.minecolonies.NationCityCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTerritoryCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationUpkeep;
+import com.mrzeyner.colonynations.compat.minecolonies.TerritorySync;
 import com.mrzeyner.colonynations.compat.numismatics.NationTreasuryCommands;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.CityRef;
@@ -140,6 +141,7 @@ public final class NationCommands {
                     nation.name(),
                     Config.DISBAND_CONFIRM_SECONDS.get());
         }
+        TerritorySync.onDisband(source.getServer(), nation);
         data.registry().delete(nation.id());
         data.territory().releaseAll(nation.id());
         data.setDirty();
@@ -160,6 +162,7 @@ public final class NationCommands {
         try {
             Nation renamed = data.registry().rename(nation.id(), newName);
             data.setDirty();
+            TerritorySync.nationMeta(source.getServer(), renamed);
             return Messages.success(source, "command.colony_nations.rename.success", previous, renamed.name());
         } catch (NationException exception) {
             return failRule(source, exception);
@@ -180,9 +183,10 @@ public final class NationCommands {
         if (nation == null) {
             return 0;
         }
-        data.registry().setColor(nation.id(), rgb);
+        Nation colored = data.registry().setColor(nation.id(), rgb);
         data.setDirty();
-        return Messages.success(source, "command.colony_nations.color.success", nation.name(), formatColor(rgb));
+        TerritorySync.nationMeta(source.getServer(), colored);
+        return Messages.success(source, "command.colony_nations.color.success", colored.name(), formatColor(rgb));
     }
 
     private static int info(CommandContext<CommandSourceStack> ctx, String nationName) throws CommandSyntaxException {

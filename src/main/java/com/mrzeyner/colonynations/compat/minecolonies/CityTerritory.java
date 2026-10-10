@@ -1,5 +1,7 @@
 package com.mrzeyner.colonynations.compat.minecolonies;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import com.minecolonies.api.colony.IColony;
@@ -8,8 +10,11 @@ import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
+import com.mrzeyner.colonynations.network.TerritoryDeltaPayload;
 import com.mrzeyner.colonynations.territory.ChunkRef;
 import com.mrzeyner.colonynations.territory.FoundingRing;
+
+import net.minecraft.server.MinecraftServer;
 
 /**
  * Turns a colony claim into city land and annexes the free founding ring around it.
@@ -18,7 +23,7 @@ public final class CityTerritory {
     private CityTerritory() {
     }
 
-    public static void onCityJoined(NationSavedData data, IColony colony, long gameTime) {
+    public static void onCityJoined(MinecraftServer server, NationSavedData data, IColony colony, long gameTime) {
         CityRef city = MineColoniesCities.cityRef(colony);
         Nation nation = data.registry().byColony(city).orElse(null);
         if (nation == null) {
@@ -26,10 +31,13 @@ public final class CityTerritory {
         }
         Set<ChunkRef> claim = ColonyClaimCache.get().refresh(colony, gameTime);
         boolean changed = releaseClaim(data, claim);
-        changed |= annexRing(data, colony, nation, claim);
+        List<ChunkRef> ring = annexRing(data, colony, nation, claim);
+        changed |= !ring.isEmpty();
         if (changed) {
             data.setDirty();
         }
+        TerritorySync.broadcastPlots(server, TerritoryDeltaPayload.CITY, nation, claim);
+        TerritorySync.broadcastPlots(server, TerritoryDeltaPayload.STATE, nation, ring);
     }
 
     /**
@@ -46,8 +54,8 @@ public final class CityTerritory {
         return changed;
     }
 
-    private static boolean annexRing(NationSavedData data, IColony colony, Nation nation, Set<ChunkRef> claim) {
-        boolean changed = false;
+    private static List<ChunkRef> annexRing(NationSavedData data, IColony colony, Nation nation, Set<ChunkRef> claim) {
+        List<ChunkRef> claimed = new ArrayList<>();
         for (ChunkRef chunk : FoundingRing.around(claim, Config.FOUNDING_RING_CHUNKS.get())) {
             if (data.territory().owner(chunk).isPresent()) {
                 continue;
@@ -56,8 +64,8 @@ public final class CityTerritory {
                 continue;
             }
             data.territory().claim(chunk, nation.id());
-            changed = true;
+            claimed.add(chunk);
         }
-        return changed;
+        return claimed;
     }
 }

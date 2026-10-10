@@ -36,6 +36,11 @@ public final class ColonyClaimCache {
         return refresh(colony, gameTime);
     }
 
+    public Set<ChunkRef> peek(CityRef city) {
+        Entry entry = entries.get(city);
+        return entry == null ? Set.of() : entry.chunks;
+    }
+
     public Set<ChunkRef> refresh(IColony colony, long gameTime) {
         Set<ChunkRef> chunks = ColonyClaims.of(colony);
         entries.put(MineColoniesCities.cityRef(colony), new Entry(gameTime, chunks));

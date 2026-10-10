@@ -1,11 +1,17 @@
 package com.mrzeyner.colonynations.compat.minecolonies;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.IColonyManager;
 
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.CityRef;
+import com.mrzeyner.colonynations.nation.Nation;
+import com.mrzeyner.colonynations.network.TerritoryDeltaPayload;
 import com.mrzeyner.colonynations.territory.ChunkRef;
 
 import net.minecraft.server.MinecraftServer;
@@ -36,15 +42,31 @@ public final class ColonyClaimTicker {
         boolean changed = false;
         for (IColony colony : IColonyManager.getInstance().getAllColonies()) {
             CityRef city = MineColoniesCities.cityRef(colony);
-            if (data.registry().byColony(city).isEmpty()) {
+            Nation nation = data.registry().byColony(city).orElse(null);
+            if (nation == null) {
                 continue;
             }
-            for (ChunkRef chunk : ColonyClaimCache.get().refresh(colony, gameTime)) {
-                if (data.territory().owner(chunk).isPresent()) {
+            Set<ChunkRef> before = ColonyClaimCache.get().peek(city);
+            Set<ChunkRef> after = ColonyClaimCache.get().refresh(colony, gameTime);
+            List<ChunkRef> showCity = new ArrayList<>();
+            List<ChunkRef> left = new ArrayList<>();
+            for (ChunkRef chunk : after) {
+                boolean coveredState = data.territory().owner(chunk).isPresent();
+                if (coveredState) {
                     data.territory().release(chunk);
                     changed = true;
                 }
+                if (!before.contains(chunk) || coveredState) {
+                    showCity.add(chunk);
+                }
             }
+            for (ChunkRef chunk : before) {
+                if (!after.contains(chunk)) {
+                    left.add(chunk);
+                }
+            }
+            TerritorySync.broadcastPlots(server, TerritoryDeltaPayload.CITY, nation, showCity);
+            TerritorySync.reconcile(server, data, left, gameTime);
         }
         if (changed) {
             data.setDirty();

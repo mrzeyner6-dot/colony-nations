@@ -93,6 +93,7 @@ public final class NationUpkeep {
                 for (ChunkRef chunk : released) {
                     data.territory().release(chunk);
                 }
+                TerritorySync.releaseAll(server, released);
             }
             if (charge.paid() == 0L && released.isEmpty()) {
                 continue;
