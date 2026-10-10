@@ -170,12 +170,18 @@
 - У грі: заснувати державу, поставити ратушу — колонія має з'явитись у `/nation city list` як столиця; другу колонію додати командою (поки гравець не може мати другу колонію MineColonies — це T8); `/nation capital`; видалити колонію в MineColonies і перевірити, що її немає в списку міст.
 
 ### T8. Кілька колоній на одного гравця
-Статус: TODO (залежить від T4)
+Статус: DONE
 
 - Якщо в MineColonies є опція конфігу — задокументуй її в `docs/notes/server-setup.md` і нічого не пиши.
 - Якщо немає — Mixin, який дозволяє створити нову колонію, коли гравець має державу і місце ратуші — на землі його держави. Поки територій ще немає: дозволяй, якщо гравець має державу (перевірку землі додамо в етапі 2 — залиш `// TODO(T-territory)`).
 
 Готово, коли: `build` проходить; у звіті — який підхід обрано і чому.
+
+Звіт:
+- Ключ `allowinfinitecolonies` у MineColonies є, але сервер його ігнорує: він лише показує кнопку abandon у клієнтському вікні ратуші. `CreateColonyMessage.onExecute` все одно відхиляє другу колонію, якщо `getIColonyByOwner` непорожній. Тому гілка «лише документація» не підходить. Описано в `docs/notes/server-setup.md`.
+- Mixin `CreateColonyMessageMixin` (`@Redirect` на `IColonyManager.getIColonyByOwner(Level, Player)`): якщо гравець уже має державу Colony Nations, метод повертає `null` і MineColonies йде звичайним шляхом створення. Нова колонія далі сама додається до держави через `ColonyCreatedModEvent` (T7). Гравець без держави як і раніше отримує відмову. У коді лишився `// TODO(T-territory)`.
+- `runServer` дійшов до `Done`. У `debug.log`: `Mixing CreateColonyMessageMixin from colony_nations.mixins.json into com.minecolonies.core.network.messages.server.CreateColonyMessage`. Згенерований `neoforge.mods.toml` містить `[[mixins]] config="colony_nations.mixins.json"`.
+- У грі: гравець із державою ставить другу ратушу — колонія створюється і з'являється в `/nation city list`; гравець без держави другу колонію заснувати не може.
 
 ### T9. Скарбниця (монети Numismatics)
 Статус: TODO
