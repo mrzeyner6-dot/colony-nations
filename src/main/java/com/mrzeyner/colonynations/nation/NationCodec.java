@@ -25,8 +25,17 @@ public final class NationCodec {
 
     /**
      * @param warning set when the payload version is not {@link #VERSION}; the registry is then empty
+     * @param preserved original payload bytes when {@code warning} is set, so a later save can write them back
+     * @param version payload version that was read
      */
-    public record Loaded(NationRegistry registry, String warning) {
+    public record Loaded(NationRegistry registry, String warning, byte[] preserved, int version) {
+        public Loaded {
+            preserved = preserved == null ? null : preserved.clone();
+        }
+
+        public boolean unreadable() {
+            return warning != null;
+        }
     }
 
     private NationCodec() {
@@ -48,6 +57,16 @@ public final class NationCodec {
         return bytes.toByteArray();
     }
 
+    /**
+     * Writes a registry, or the original bytes when {@code loaded} could not be read.
+     */
+    public static byte[] write(Loaded loaded) {
+        if (loaded.preserved() != null) {
+            return loaded.preserved().clone();
+        }
+        return write(loaded.registry());
+    }
+
     public static NationRegistry read(byte[] payload) {
         Loaded loaded = load(payload);
         if (loaded.warning() != null) {
@@ -63,7 +82,10 @@ public final class NationCodec {
                 return new Loaded(
                         new NationRegistry(),
                         "Unknown nation save version " + version
-                                + " (expected " + VERSION + "). Starting with an empty nation registry.");
+                                + " (expected " + VERSION
+                                + "). The original save was kept and nation changes are blocked.",
+                        payload,
+                        version);
             }
             int count = in.readInt();
             List<Nation> nations = new ArrayList<>(count);
@@ -72,7 +94,7 @@ public final class NationCodec {
             }
             NationRegistry registry = new NationRegistry();
             registry.restore(nations);
-            return new Loaded(registry, null);
+            return new Loaded(registry, null, null, version);
         } catch (IOException exception) {
             throw new IllegalStateException("failed to read nations", exception);
         }

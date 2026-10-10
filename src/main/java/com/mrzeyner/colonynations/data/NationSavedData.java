@@ -4,30 +4,60 @@ import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.nation.NationCodec;
 import com.mrzeyner.colonynations.nation.NationRegistry;
 
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.saveddata.SavedData;
 
 /**
  * Overworld saved data for {@link NationRegistry}.
  * The registry itself is stored as the versioned bytes from {@link NationCodec}.
+ * An unreadable payload is kept as-is so a save does not erase it.
  */
 public final class NationSavedData extends SavedData {
     public static final String DATA_ID = "colony_nations";
     private static final String PAYLOAD = "Payload";
 
     private final NationRegistry registry;
+    private final byte[] preservedPayload;
+    private final int unreadVersion;
 
     public NationSavedData() {
-        this(new NationRegistry());
+        this(new NationRegistry(), null, 0);
     }
 
     public NationSavedData(NationRegistry registry) {
+        this(registry, null, 0);
+    }
+
+    private NationSavedData(NationRegistry registry, byte[] preservedPayload, int unreadVersion) {
         this.registry = registry;
+        this.preservedPayload = preservedPayload == null ? null : preservedPayload.clone();
+        this.unreadVersion = unreadVersion;
     }
 
     public NationRegistry registry() {
         return registry;
+    }
+
+    public boolean unreadable() {
+        return preservedPayload != null;
+    }
+
+    public int unreadVersion() {
+        return unreadVersion;
+    }
+
+    /**
+     * @return true when nation changes must not be applied; the source has already been told why
+     */
+    public boolean refuseChanges(CommandSourceStack source) {
+        if (!unreadable()) {
+            return false;
+        }
+        source.sendFailure(Component.translatable("command.colony_nations.save.unreadable", unreadVersion));
+        return true;
     }
 
     public static final SavedData.Factory<NationSavedData> FACTORY =
@@ -38,16 +68,19 @@ public final class NationSavedData extends SavedData {
     }
 
     public static NationSavedData load(CompoundTag tag, HolderLookup.Provider provider) {
-        NationCodec.Loaded loaded = NationCodec.load(tag.getByteArray(PAYLOAD));
-        if (loaded.warning() != null) {
+        byte[] payload = tag.getByteArray(PAYLOAD);
+        NationCodec.Loaded loaded = NationCodec.load(payload);
+        if (loaded.unreadable()) {
             ColonyNations.LOGGER.error(loaded.warning());
+            return new NationSavedData(loaded.registry(), loaded.preserved(), loaded.version());
         }
         return new NationSavedData(loaded.registry());
     }
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
-        tag.putByteArray(PAYLOAD, NationCodec.write(registry));
+        byte[] payload = preservedPayload != null ? preservedPayload : NationCodec.write(registry);
+        tag.putByteArray(PAYLOAD, payload.clone());
         return tag;
     }
 }

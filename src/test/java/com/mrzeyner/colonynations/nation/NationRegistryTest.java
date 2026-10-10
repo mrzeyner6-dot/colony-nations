@@ -1,5 +1,6 @@
 package com.mrzeyner.colonynations.nation;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -227,6 +228,7 @@ class NationRegistryTest {
             NationRegistry read = NationCodec.read(bytes.toByteArray());
             assertTrue(read.all().isEmpty());
             assertTrue(messages.stream().anyMatch(message -> message.contains("version 1")));
+            assertArrayEquals(bytes.toByteArray(), NationCodec.write(loaded));
         } finally {
             logger.removeHandler(handler);
             logger.setLevel(previous);

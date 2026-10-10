@@ -47,6 +47,9 @@ public final class NationCityCommands {
             return fail(source, "command.colony_nations.players_only");
         }
         NationSavedData data = NationSavedData.get(source.getServer());
+        if (data.refuseChanges(source)) {
+            return 0;
+        }
         Nation nation = data.registry().byOwner(player.getUUID()).orElse(null);
         if (nation == null) {
             return fail(source, "command.colony_nations.info.none");
@@ -98,6 +101,9 @@ public final class NationCityCommands {
         ServerPlayer player = player(source);
         if (player == null) {
             return fail(source, "command.colony_nations.players_only");
+        }
+        if (NationSavedData.get(source.getServer()).refuseChanges(source)) {
+            return 0;
         }
         int colonyId = IntegerArgumentType.getInteger(ctx, "colonyId");
         ResourceKey<Level> here = player.level().dimension();

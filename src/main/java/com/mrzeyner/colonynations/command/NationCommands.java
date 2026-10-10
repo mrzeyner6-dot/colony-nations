@@ -93,6 +93,9 @@ public final class NationCommands {
     }
 
     private static int create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        if (saved(ctx).refuseChanges(ctx.getSource())) {
+            return 0;
+        }
         ServerPlayer player = player(ctx.getSource());
         if (player == null) {
             return fail(ctx.getSource(), "command.colony_nations.players_only");
@@ -115,6 +118,9 @@ public final class NationCommands {
     private static int disband(CommandContext<CommandSourceStack> ctx, String nationName) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
         NationSavedData data = saved(ctx);
+        if (data.refuseChanges(source)) {
+            return 0;
+        }
         Nation nation = resolveMutable(source, data.registry(), nationName);
         if (nation == null) {
             return 0;
@@ -136,6 +142,9 @@ public final class NationCommands {
     private static int rename(CommandContext<CommandSourceStack> ctx, String nationName, String newName) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
         NationSavedData data = saved(ctx);
+        if (data.refuseChanges(source)) {
+            return 0;
+        }
         Nation nation = resolveMutable(source, data.registry(), nationName);
         if (nation == null) {
             return 0;
@@ -152,6 +161,9 @@ public final class NationCommands {
 
     private static int color(CommandContext<CommandSourceStack> ctx, String nationName, String rawColor) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
+        if (saved(ctx).refuseChanges(source)) {
+            return 0;
+        }
         Integer rgb = parseColor(rawColor);
         if (rgb == null) {
             return fail(source, "command.colony_nations.color.invalid");

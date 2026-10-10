@@ -39,6 +39,10 @@ public final class NationColonyEvents {
             return;
         }
         NationSavedData data = NationSavedData.get(server);
+        if (data.unreadable()) {
+            ignored(data, colony);
+            return;
+        }
         Nation nation = data.registry().byOwner(owner).orElse(null);
         if (nation == null) {
             return;
@@ -72,6 +76,10 @@ public final class NationColonyEvents {
             return;
         }
         NationSavedData data = NationSavedData.get(server);
+        if (data.unreadable()) {
+            ignored(data, colony);
+            return;
+        }
         CityRef city = MineColoniesCities.cityRef(colony);
         Nation nation = data.registry().byColony(city).orElse(null);
         if (nation == null) {
@@ -79,6 +87,13 @@ public final class NationColonyEvents {
         }
         data.registry().removeColony(nation.id(), city);
         data.setDirty();
+    }
+
+    private static void ignored(NationSavedData data, IColony colony) {
+        ColonyNations.LOGGER.warn(
+                "Ignored a change to colony {} because nation data version {} could not be read.",
+                colony.getID(),
+                data.unreadVersion());
     }
 
     private static MinecraftServer server(IColony colony) {

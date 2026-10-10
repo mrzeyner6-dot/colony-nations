@@ -51,6 +51,9 @@ public final class NationTreasuryCommands {
     private static int deposit(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
         NationSavedData data = saved(ctx);
+        if (data.refuseChanges(source)) {
+            return 0;
+        }
         Nation nation = ownNation(source, data.registry());
         if (nation == null) {
             return 0;
@@ -76,6 +79,9 @@ public final class NationTreasuryCommands {
     private static int withdraw(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
         NationSavedData data = saved(ctx);
+        if (data.refuseChanges(source)) {
+            return 0;
+        }
         Nation nation = ownNation(source, data.registry());
         if (nation == null) {
             return 0;
