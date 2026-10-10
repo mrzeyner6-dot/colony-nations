@@ -1,1 +1,24 @@
-{}
+{
+  "command.colony_nations.players_only": "Only a player can run this command.",
+  "command.colony_nations.create.success": "Founded nation %s.",
+  "command.colony_nations.name_length": "Nation name must be 3–24 characters.",
+  "command.colony_nations.name_taken": "A nation with that name already exists.",
+  "command.colony_nations.owner_has_nation": "You already have a nation.",
+  "command.colony_nations.disband.confirm": "Run the disband command again within %2$s seconds to disband %1$s.",
+  "command.colony_nations.disband.success": "Disbanded %s.",
+  "command.colony_nations.rename.success": "Renamed %s to %s.",
+  "command.colony_nations.color.invalid": "Color must look like #RRGGBB.",
+  "command.colony_nations.color.success": "Set %s color to %s.",
+  "command.colony_nations.info.header": "Nation %s",
+  "command.colony_nations.info.owner": "Owner: %s",
+  "command.colony_nations.info.color": "Color: %s",
+  "command.colony_nations.info.capital": "Capital colony: %s",
+  "command.colony_nations.info.colonies": "Colonies: %s",
+  "command.colony_nations.info.treasury": "Treasury: %s",
+  "command.colony_nations.info.none": "You have no nation.",
+  "command.colony_nations.unknown": "No nation named %s.",
+  "command.colony_nations.not_owner": "Only the owner can change this nation.",
+  "command.colony_nations.list.header": "Nations (%s):",
+  "command.colony_nations.list.entry": "- %s (owner %s, colonies %s)",
+  "command.colony_nations.list.empty": "There are no nations."
+}

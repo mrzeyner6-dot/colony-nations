@@ -104,7 +104,7 @@
 - У грі перевіряти нічого: команд і збереження світу ще немає.
 
 ### T6. Команди держави
-Статус: TODO
+Статус: DONE
 
 Корінь `/nation`:
 - `create <name>`, `disband` (з підтвердженням: повторна команда протягом 30 с), `rename <name>`, `color <#RRGGBB>`, `info [name]`, `list`.
@@ -112,6 +112,36 @@
 - Усі повідомлення через ключі локалізації (en + uk).
 
 Готово, коли: `build` проходить; у звіті — повний список команд з прикладами виводу.
+
+Звіт:
+- Команди в `command/NationCommands`. Стан — `NationSavedData` на overworld (`colony_nations.dat`), `setDirty()` після змін.
+- Змінювати свою державу може власник. Будь-яку — оператор (permission level 2) через `/nation admin <name> ...`. Назва — один аргумент Brigadier; пробіл у назві береться в лапках.
+- Підтвердження розпуску: повтор тієї самої команди протягом `disbandConfirmSeconds` (конфіг, default 30). Вікно в тіках ігрового часу, у пам'яті, після рестарту скидається. Тест `DisbandConfirmationsTest`.
+- Нова держава отримує колір `#FFFFFF`.
+- `./gradlew build` пройшов.
+
+Команди й приклади виводу (en_us; uk_ua є в `uk_ua.json`):
+
+- `/nation create Rome` → `Founded nation Rome.`
+- `/nation create Ro` → `Nation name must be 3–24 characters.`
+- `/nation create Rome` (назва зайнята) → `A nation with that name already exists.`
+- `/nation create Gaul` (у гравця вже є держава) → `You already have a nation.`
+- `/nation disband` → `Run the disband command again within 30 seconds to disband Rome.`
+- `/nation disband` (повтор) → `Disbanded Rome.`
+- `/nation rename Roma` → `Renamed Rome to Roma.`
+- `/nation color #336699` → `Set Rome color to #336699.`
+- `/nation color red` → `Color must look like #RRGGBB.`
+- `/nation info` або `/nation info Rome` →
+  `Nation Rome` / `Owner: Steve` / `Color: #336699` / `Capital colony: —` / `Colonies: —` / `Treasury: 0`
+- `/nation info Missing` → `No nation named Missing.`
+- `/nation info` (немає держави) → `You have no nation.`
+- `/nation list` → `Nations (1):` / `- Rome (owner Steve, colonies 0)`
+- `/nation list` (порожньо) → `There are no nations.`
+- `/nation admin Rome rename Gaul` → `Renamed Rome to Gaul.`
+- `/nation admin Rome color #00FF00` → `Set Rome color to #00FF00.`
+- `/nation admin Rome disband` → те саме підтвердження, потім `Disbanded Rome.`
+
+У грі: зайти гравцем, пройти create → info → color → rename → disband двічі; оператором змінити чужу державу через admin; перевірити, що після рестарту `/nation list` той самий.
 
 ### T7. Міста: прив'язка колоній до держави
 Статус: TODO (залежить від T4)

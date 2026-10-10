@@ -29,8 +29,11 @@ public final class NationSavedData extends SavedData {
         return registry;
     }
 
-    public static SavedData.Factory<NationSavedData> factory() {
-        return new SavedData.Factory<>(NationSavedData::new, NationSavedData::load, null);
+    public static final SavedData.Factory<NationSavedData> FACTORY =
+            new SavedData.Factory<>(NationSavedData::new, NationSavedData::load, null);
+
+    public static NationSavedData get(net.minecraft.server.MinecraftServer server) {
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_ID);
     }
 
     public static NationSavedData load(CompoundTag tag, HolderLookup.Provider provider) {
