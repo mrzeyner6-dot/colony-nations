@@ -4,7 +4,8 @@
   "package": "com.mrzeyner.colonynations.compat.minecolonies.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "CreateColonyMessageMixin"
+    "CreateColonyMessageMixin",
+    "GetColonyInfoMessageMixin"
   ],
   "injectors": {
     "defaultRequire": 1

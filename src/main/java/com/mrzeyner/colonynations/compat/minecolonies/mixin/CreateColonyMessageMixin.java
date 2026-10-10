@@ -4,10 +4,8 @@ import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.IColonyManager;
 import com.minecolonies.core.network.messages.server.CreateColonyMessage;
 
-import com.mrzeyner.colonynations.data.NationSavedData;
+import com.mrzeyner.colonynations.compat.minecolonies.NationColonyGate;
 
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
@@ -31,14 +29,6 @@ public abstract class CreateColonyMessageMixin {
             )
     )
     private IColony allowNationOwnerToFoundAnotherColony(IColonyManager manager, Level world, Player player) {
-        IColony owned = manager.getIColonyByOwner(world, player);
-        if (owned == null || !(player instanceof ServerPlayer serverPlayer) || !(world instanceof ServerLevel serverLevel)) {
-            return owned;
-        }
-        // TODO(T-territory) also require the town hall to stand on this nation's land.
-        if (NationSavedData.get(serverLevel.getServer()).registry().byOwner(serverPlayer.getUUID()).isPresent()) {
-            return null;
-        }
-        return owned;
+        return NationColonyGate.blockingColony(manager, world, player);
     }
 }
