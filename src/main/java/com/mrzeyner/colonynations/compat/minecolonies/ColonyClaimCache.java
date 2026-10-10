@@ -41,9 +41,15 @@ public final class ColonyClaimCache {
         return entry == null ? Set.of() : entry.chunks;
     }
 
+    public String name(CityRef city) {
+        Entry entry = entries.get(city);
+        return entry == null || entry.name == null ? "" : entry.name;
+    }
+
     public Set<ChunkRef> refresh(IColony colony, long gameTime) {
         Set<ChunkRef> chunks = ColonyClaims.of(colony);
-        entries.put(MineColoniesCities.cityRef(colony), new Entry(gameTime, chunks));
+        String name = colony.getName() == null ? "" : colony.getName();
+        entries.put(MineColoniesCities.cityRef(colony), new Entry(gameTime, chunks, name));
         return chunks;
     }
 
@@ -55,6 +61,6 @@ public final class ColonyClaimCache {
         entries.clear();
     }
 
-    private record Entry(long gameTime, Set<ChunkRef> chunks) {
+    private record Entry(long gameTime, Set<ChunkRef> chunks, String name) {
     }
 }

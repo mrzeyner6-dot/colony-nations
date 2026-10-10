@@ -10,7 +10,6 @@ import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
-import com.mrzeyner.colonynations.network.TerritoryDeltaPayload;
 import com.mrzeyner.colonynations.territory.ChunkRef;
 import com.mrzeyner.colonynations.territory.FoundingRing;
 
@@ -36,8 +35,9 @@ public final class CityTerritory {
         if (changed) {
             data.setDirty();
         }
-        TerritorySync.broadcastPlots(server, TerritoryDeltaPayload.CITY, nation, claim);
-        TerritorySync.broadcastPlots(server, TerritoryDeltaPayload.STATE, nation, ring);
+        String name = colony.getName() == null ? "" : colony.getName();
+        TerritorySync.broadcastCity(server, nation, claim, colony.getID(), name);
+        TerritorySync.broadcastState(server, data, nation, ring, gameTime);
     }
 
     /**

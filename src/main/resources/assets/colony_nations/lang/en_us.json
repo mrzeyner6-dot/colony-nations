@@ -72,5 +72,6 @@
   "command.colony_nations.upkeep.ran": "Ran territory upkeep.",
   "command.colony_nations.territory.protected": "This land belongs to a nation.",
   "map.colony_nations.tooltip.state": "%s — State land",
-  "map.colony_nations.tooltip.city": "%s — City \"%s\""
+  "map.colony_nations.tooltip.city": "City \"%s\" — %s",
+  "map.colony_nations.tooltip.core": "%s — outskirts of city \"%s\""
 }

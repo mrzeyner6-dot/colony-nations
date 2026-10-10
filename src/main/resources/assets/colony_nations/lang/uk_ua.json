@@ -72,5 +72,6 @@
   "command.colony_nations.upkeep.ran": "Утримання території виконано.",
   "command.colony_nations.territory.protected": "Ця земля належить державі.",
   "map.colony_nations.tooltip.state": "%s — Державна земля",
-  "map.colony_nations.tooltip.city": "%s — Місто «%s»"
+  "map.colony_nations.tooltip.city": "Місто «%s» — %s",
+  "map.colony_nations.tooltip.core": "%s — околиці міста «%s»"
 }

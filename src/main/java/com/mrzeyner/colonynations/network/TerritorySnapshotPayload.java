@@ -19,8 +19,9 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 /**
  * Full territory of one dimension.
  * Layout: utf dimension, varint nations (uuid, utf name, int color),
- * varint plots (int x, int z, varint nation index, byte kind). Kind 0 is state land, 1 is city land.
- * A thousand plots and a handful of nations are about 10 KiB.
+ * varint plots (int x, int z, varint nation index, byte kind).
+ * Kind 0 is annexed state land. Kind 1 is city land and kind 2 is the city core;
+ * those two also carry a varint colony id and the colony name.
  */
 public record TerritorySnapshotPayload(String dimension, List<NationPart> nations, List<PlotPart> plots)
         implements CustomPacketPayload {
@@ -34,7 +35,11 @@ public record TerritorySnapshotPayload(String dimension, List<NationPart> nation
     public record NationPart(UUID id, String name, int color) {
     }
 
-    public record PlotPart(int x, int z, int nationIndex, boolean city) {
+    public static final byte STATE = 0;
+    public static final byte CITY = 1;
+    public static final byte CORE = 2;
+
+    public record PlotPart(int x, int z, int nationIndex, byte kind, int colonyId, String placeName) {
     }
 
     public static void encode(RegistryFriendlyByteBuf buf, TerritorySnapshotPayload payload) {
@@ -51,7 +56,11 @@ public record TerritorySnapshotPayload(String dimension, List<NationPart> nation
             buf.writeInt(plot.x);
             buf.writeInt(plot.z);
             buf.writeVarInt(plot.nationIndex);
-            buf.writeByte(plot.city ? 1 : 0);
+            buf.writeByte(plot.kind);
+            if (plot.kind != STATE) {
+                buf.writeVarInt(plot.colonyId);
+                buf.writeUtf(plot.placeName == null ? "" : plot.placeName);
+            }
         }
     }
 
@@ -65,7 +74,17 @@ public record TerritorySnapshotPayload(String dimension, List<NationPart> nation
         int plotCount = buf.readVarInt();
         List<PlotPart> plots = new ArrayList<>(plotCount);
         for (int i = 0; i < plotCount; i++) {
-            plots.add(new PlotPart(buf.readInt(), buf.readInt(), buf.readVarInt(), buf.readByte() == 1));
+            int x = buf.readInt();
+            int z = buf.readInt();
+            int nationIndex = buf.readVarInt();
+            byte kind = buf.readByte();
+            int colonyId = -1;
+            String placeName = "";
+            if (kind != STATE) {
+                colonyId = buf.readVarInt();
+                placeName = buf.readUtf();
+            }
+            plots.add(new PlotPart(x, z, nationIndex, kind, colonyId, placeName));
         }
         return new TerritorySnapshotPayload(dimension, nations, plots);
     }
@@ -84,10 +103,18 @@ public record TerritorySnapshotPayload(String dimension, List<NationPart> nation
                 UUID nation = payload.nations.get(plot.nationIndex).id;
                 plots.put(
                         new ChunkRef(payload.dimension, plot.x, plot.z),
-                        new TerritoryClientCache.Plot(nation, plot.city));
+                        new TerritoryClientCache.Plot(nation, land(plot.kind), plot.colonyId, plot.placeName));
             }
             TerritoryClientCache.replace(payload.dimension, nations, plots);
         });
+    }
+
+    private static TerritoryClientCache.Land land(byte kind) {
+        return switch (kind) {
+            case CITY -> TerritoryClientCache.Land.CITY;
+            case CORE -> TerritoryClientCache.Land.CORE;
+            default -> TerritoryClientCache.Land.STATE;
+        };
     }
 
     @Override

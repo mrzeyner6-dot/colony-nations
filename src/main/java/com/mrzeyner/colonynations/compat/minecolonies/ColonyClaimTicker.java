@@ -11,7 +11,6 @@ import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
-import com.mrzeyner.colonynations.network.TerritoryDeltaPayload;
 import com.mrzeyner.colonynations.territory.ChunkRef;
 
 import net.minecraft.server.MinecraftServer;
@@ -46,8 +45,11 @@ public final class ColonyClaimTicker {
             if (nation == null) {
                 continue;
             }
+            String previousName = ColonyClaimCache.get().name(city);
             Set<ChunkRef> before = ColonyClaimCache.get().peek(city);
             Set<ChunkRef> after = ColonyClaimCache.get().refresh(colony, gameTime);
+            String name = ColonyClaimCache.get().name(city);
+            boolean nameChanged = !name.equals(previousName);
             List<ChunkRef> showCity = new ArrayList<>();
             List<ChunkRef> left = new ArrayList<>();
             for (ChunkRef chunk : after) {
@@ -65,8 +67,14 @@ public final class ColonyClaimTicker {
                     left.add(chunk);
                 }
             }
-            TerritorySync.broadcastPlots(server, TerritoryDeltaPayload.CITY, nation, showCity);
+            if (nameChanged) {
+                showCity = new ArrayList<>(after);
+            }
+            TerritorySync.broadcastCity(server, nation, showCity, colony.getID(), name);
             TerritorySync.reconcile(server, data, left, gameTime);
+            if (nameChanged || !showCity.isEmpty() || !left.isEmpty()) {
+                TerritorySync.relabelState(server, data, nation, city.dimension(), gameTime);
+            }
         }
         if (changed) {
             data.setDirty();

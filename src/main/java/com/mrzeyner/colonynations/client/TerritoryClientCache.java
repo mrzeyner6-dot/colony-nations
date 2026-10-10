@@ -24,7 +24,22 @@ public final class TerritoryClientCache {
     public record NationView(UUID id, String name, int color) {
     }
 
-    public record Plot(UUID nation, boolean city) {
+    public enum Land {
+        STATE,
+        CITY,
+        CORE
+    }
+
+    /**
+     * @param colonyId colony id when {@code land} is city or core, otherwise {@code -1}
+     * @param placeName colony name for city and core land; empty for annexed land
+     */
+    public record Plot(UUID nation, Land land, int colonyId, String placeName) {
+        public Plot {
+            if (placeName == null) {
+                placeName = "";
+            }
+        }
     }
 
     public static void replace(String nextDimension, Map<UUID, NationView> nations, Map<ChunkRef, Plot> plots) {
@@ -82,6 +97,10 @@ public final class TerritoryClientCache {
         Set<UUID> copy = Set.copyOf(DIRTY);
         DIRTY.clear();
         return copy;
+    }
+
+    public static Plot plot(ChunkRef chunk) {
+        return PLOTS.get(chunk);
     }
 
     public static String dimension() {
