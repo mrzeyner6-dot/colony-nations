@@ -86,7 +86,7 @@
 - У грі перевіряти нічого.
 
 ### T5. Модель держави
-Статус: TODO
+Статус: DONE
 
 Чисті класи в `nation/` (без Minecraft-типів, де можливо):
 - `Nation`: `UUID id`, `String name`, `UUID owner`, `int color` (RGB), `Integer capitalColonyId` (nullable), `Set<Integer> colonyIds`, `long treasury` (в найменшій монеті Numismatics — spur), `long createdGameTime`.
@@ -94,6 +94,14 @@
 - `NationSavedData` (в `data/`): серіалізація реєстру в NBT і назад.
 
 Готово, коли: `build` проходить; JUnit-тести покривають усі правила реєстру й повний цикл серіалізації (зберегти → завантажити → рівні дані).
+
+Звіт:
+- Чисті класи `nation/Nation`, `NationRegistry`, `NationException`, `NationCodec`. `data/NationSavedData` кладе байти кодека в NBT-поле `Payload` (`SavedData` на overworld ще не підключено — це наступні задачі).
+- Правила: назва 3–24 коди (після `trim`), унікальна без регістру (`Locale.ROOT`); один власник — одна держава; колонія щонайбільше в одній державі; перша колонія стає столицею; після зняття столиці столицею стає колонія з найменшим id, або `null`, якщо міст не лишилось.
+- Розбіжність із `docs/DESIGN.md`: там після падіння столиці тимчасово працює найбільше місто. Задача вимагає найменший id — зроблено так.
+- JUnit не піднімає класи Minecraft (`SavedData` тягне `LogUtils`, якого немає на test classpath ModDevGradle). Тому цикл «зберегти → завантажити → рівні дані» перевіряє `NationCodec`, ті самі байти, які `NationSavedData` пише в NBT. `NationRegistryTest` — 9 тестів.
+- `./gradlew build` пройшов.
+- У грі перевіряти нічого: команд і збереження світу ще немає.
 
 ### T6. Команди держави
 Статус: TODO
