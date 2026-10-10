@@ -43,6 +43,13 @@ public final class Messages {
         return 0;
     }
 
+    /**
+     * Error colors without a sound, for repeated protection warnings.
+     */
+    public static void quietError(ServerPlayer player, String key, Object... args) {
+        player.sendSystemMessage(prefixed(ERROR, false, key, args));
+    }
+
     public static int info(CommandSourceStack source, String key, Object... args) {
         source.sendSuccess(() -> prefixed(TEXT, false, key, args), false);
         return 1;
