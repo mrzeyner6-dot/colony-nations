@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.mrzeyner.colonynations.ColonyNations;
+import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.client.TerritoryClientCache;
 import com.mrzeyner.colonynations.territory.ChunkPolygons;
 import com.mrzeyner.colonynations.territory.ChunkRef;
@@ -31,6 +32,7 @@ import journeymap.api.v2.common.JourneyMapPlugin;
 import com.mojang.blaze3d.platform.NativeImage;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -54,8 +56,13 @@ public final class NationMapPlugin implements IClientPlugin {
     private static final float STATE_STROKE = 2F;
     private static final float CITY_STROKE = 4F;
 
+    private static final ResourceLocation BLANK_ICON_ID =
+            ResourceLocation.fromNamespaceAndPath(ColonyNations.MOD_ID, "map_city_label");
+
+    private static MapImage blankIcon;
     private IClientAPI api;
     private boolean listening;
+    private boolean labelsEnabled = true;
     private final Map<UUID, List<Overlay>> shown = new HashMap<>();
 
     public NationMapPlugin() {
@@ -83,12 +90,23 @@ public final class NationMapPlugin implements IClientPlugin {
         if (!here.equals(TerritoryClientCache.dimension())) {
             return;
         }
+        boolean showLabels = Config.MAP_CITY_LABELS.get();
+        boolean labelsChanged = showLabels != labelsEnabled;
+        labelsEnabled = showLabels;
         if (TerritoryClientCache.consumeReset()) {
             TerritoryClientCache.consumeDirty();
             api.removeAll(ColonyNations.MOD_ID, DisplayType.Polygon);
             api.removeAll(ColonyNations.MOD_ID, DisplayType.Marker);
             shown.clear();
             for (UUID nation : TerritoryClientCache.nations().keySet()) {
+                draw(nation);
+            }
+            return;
+        }
+        if (labelsChanged) {
+            Set<UUID> nations = new HashSet<>(TerritoryClientCache.consumeDirty());
+            nations.addAll(TerritoryClientCache.nations().keySet());
+            for (UUID nation : nations) {
                 draw(nation);
             }
             return;
@@ -133,6 +151,12 @@ public final class NationMapPlugin implements IClientPlugin {
         List<Overlay> overlays = new ArrayList<>();
         overlays.addAll(polygons(level, nation, state, false));
         overlays.addAll(polygons(level, nation, city, true));
+        if (!labelsEnabled) {
+            if (!overlays.isEmpty()) {
+                shown.put(nationId, overlays);
+            }
+            return;
+        }
         for (Map.Entry<Integer, List<ChunkRef>> claim : claims.entrySet()) {
             String placeName = claimNames.getOrDefault(claim.getKey(), "");
             if (placeName.isEmpty() || claim.getValue().isEmpty()) {
@@ -233,13 +257,21 @@ public final class NationMapPlugin implements IClientPlugin {
         };
     }
 
+    /**
+     * One transparent pixel, opacity 1. Opacity 0 is written into the quad color and must not be used.
+     * The image is registered once; markers only reference it, so a redraw does not allocate another texture.
+     */
     private static MapImage blankIcon() {
-        NativeImage image = new NativeImage(1, 1, true);
-        MapImage icon = new MapImage(image);
-        icon.setOpacity(0F);
-        icon.setDisplayWidth(1);
-        icon.setDisplayHeight(1);
-        return icon;
+        if (blankIcon == null) {
+            NativeImage image = new NativeImage(1, 1, true);
+            image.setPixelRGBA(0, 0, 0);
+            Minecraft.getInstance().getTextureManager().register(BLANK_ICON_ID, new DynamicTexture(image));
+            blankIcon = new MapImage(BLANK_ICON_ID, 1, 1);
+            blankIcon.setOpacity(1F);
+            blankIcon.setDisplayWidth(1);
+            blankIcon.setDisplayHeight(1);
+        }
+        return blankIcon;
     }
 
     private static MapPolygon ring(List<ChunkPolygons.Point> points) {

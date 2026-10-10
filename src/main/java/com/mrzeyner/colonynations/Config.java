@@ -59,6 +59,15 @@ public final class Config {
 
     public static final ModConfigSpec SPEC = BUILDER.build();
 
+    private static final ModConfigSpec.Builder CLIENT_BUILDER = new ModConfigSpec.Builder();
+
+    public static final ModConfigSpec.BooleanValue MAP_CITY_LABELS = CLIENT_BUILDER
+            .comment("Draw each colony's name at the center of its claim on JourneyMap.",
+                    "Turn this off if the names get in the way. The territory polygons stay.")
+            .define("mapCityLabels", true);
+
+    public static final ModConfigSpec CLIENT_SPEC = CLIENT_BUILDER.build();
+
     private Config() {
     }
 }

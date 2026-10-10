@@ -26,6 +26,7 @@ public class ColonyNations {
         modEventBus.addListener(TerritoryPayloads::register);
         NeoForge.EVENT_BUS.register(this);
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        modContainer.registerConfig(ModConfig.Type.CLIENT, Config.CLIENT_SPEC);
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
