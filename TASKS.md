@@ -8,7 +8,7 @@
 ## Етап 1 — ядро держави
 
 ### T1. Перейменувати шаблон MDK
-Статус: TODO
+Статус: DONE
 
 - `gradle.properties`: `mod_id=colony_nations`, `mod_name=Colony Nations`, `mod_group_id=com.mrzeyner.colonynations`, `mod_version=0.1.0`.
 - Пакет `com.example.examplemod` → `com.mrzeyner.colonynations`, головний клас `ColonyNations`, клієнтський `ColonyNationsClient`.
@@ -17,6 +17,15 @@
 - Ліцензію поки лишити `All Rights Reserved` (рішення буде пізніше).
 
 Готово, коли: `./gradlew build` проходить; `./gradlew runServer` стартує (у `run/eula.txt` постав `eula=true`) і в лозі видно мод `colony_nations`; в коді не лишилось `examplemod`.
+
+Звіт:
+- `gradle.properties`: `mod_id=colony_nations`, `mod_name=Colony Nations`, `mod_group_id=com.mrzeyner.colonynations`, `mod_version=0.1.0`. Ліцензія лишилась `All Rights Reserved`.
+- Пакет `com.mrzeyner.colonynations`: головний клас `ColonyNations`, клієнтський `ColonyNationsClient`, клас `Config` — порожній каркас `ModConfigSpec` без прикладів значень.
+- Прибрано example block, item, creative tab і приклад конфігу. Ресурси: `assets/colony_nations/lang/en_us.json` і `uk_ua.json` — порожні `{}`.
+- У `neoforge.mods.toml` опис замінено з прикладу на короткий опис аддона, щоб в коді не лишилось `examplemod` (рядок задачі в цьому файлі лишився як є).
+- `./gradlew build` пройшов. `./gradlew runServer` з `run/eula.txt` (`eula=true`) дійшов до `Done`; у лозі є `Colony Nations 0.1.0 (colony_nations)` і `Colony Nations loaded (mod id: colony_nations)`.
+- NeoForge на DEBUG пише, що COMMON-конфіг порожній — очікувано, поки в `Config` немає значень.
+- У грі: перевірити, що мод є в списку модів під назвою Colony Nations 0.1.0.
 
 ### T2. Налаштувати юніт-тести
 Статус: TODO
