@@ -7,7 +7,7 @@
   "command.colony_nations.disband.confirm": "Повторіть команду розпуску протягом %2$s с, щоб розпустити %1$s.",
   "command.colony_nations.disband.success": "Державу %s розпущено.",
   "command.colony_nations.rename.success": "Державу %s перейменовано на %s.",
-  "command.colony_nations.color.invalid": "Колір має бути у форматі #RRGGBB.",
+  "command.colony_nations.color.invalid": "Колір має бути як #336699 або 336699.",
   "command.colony_nations.color.success": "Колір держави %s: %s.",
   "command.colony_nations.info.header": "Держава %s",
   "command.colony_nations.info.owner": "Власник: %s",

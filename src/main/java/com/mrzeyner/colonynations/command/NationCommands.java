@@ -54,7 +54,7 @@ public final class NationCommands {
                         .then(Commands.argument("name", StringArgumentType.string())
                                 .executes(ctx -> rename(ctx, null, StringArgumentType.getString(ctx, "name")))))
                 .then(Commands.literal("color")
-                        .then(Commands.argument("color", StringArgumentType.word())
+                        .then(Commands.argument("color", StringArgumentType.greedyString())
                                 .executes(ctx -> color(ctx, null, StringArgumentType.getString(ctx, "color")))))
                 .then(Commands.literal("info")
                         .executes(ctx -> info(ctx, null))
@@ -85,7 +85,7 @@ public final class NationCommands {
                                                         StringArgumentType.getString(ctx, "name"),
                                                         StringArgumentType.getString(ctx, "newName")))))
                                 .then(Commands.literal("color")
-                                        .then(Commands.argument("color", StringArgumentType.word())
+                                        .then(Commands.argument("color", StringArgumentType.greedyString())
                                                 .executes(ctx -> color(
                                                         ctx,
                                                         StringArgumentType.getString(ctx, "name"),
@@ -164,7 +164,7 @@ public final class NationCommands {
         if (saved(ctx).refuseChanges(source)) {
             return 0;
         }
-        Integer rgb = parseColor(rawColor);
+        Integer rgb = NationColors.parse(rawColor);
         if (rgb == null) {
             return fail(source, "command.colony_nations.color.invalid");
         }
@@ -280,17 +280,6 @@ public final class NationCommands {
             case COLONY_TAKEN, UNKNOWN_COLONY -> "command.colony_nations.unknown";
         };
         return fail(source, key);
-    }
-
-    private static Integer parseColor(String raw) {
-        if (raw == null || raw.length() != 7 || raw.charAt(0) != '#') {
-            return null;
-        }
-        try {
-            return Integer.parseInt(raw.substring(1), 16);
-        } catch (NumberFormatException exception) {
-            return null;
-        }
     }
 
     private static String formatColor(int rgb) {

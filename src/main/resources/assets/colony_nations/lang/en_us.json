@@ -7,7 +7,7 @@
   "command.colony_nations.disband.confirm": "Run the disband command again within %2$s seconds to disband %1$s.",
   "command.colony_nations.disband.success": "Disbanded %s.",
   "command.colony_nations.rename.success": "Renamed %s to %s.",
-  "command.colony_nations.color.invalid": "Color must look like #RRGGBB.",
+  "command.colony_nations.color.invalid": "Color must look like #336699 or 336699.",
   "command.colony_nations.color.success": "Set %s color to %s.",
   "command.colony_nations.info.header": "Nation %s",
   "command.colony_nations.info.owner": "Owner: %s",
