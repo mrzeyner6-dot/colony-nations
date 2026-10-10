@@ -49,6 +49,10 @@ public final class Config {
             .comment("Daily upkeep in spurs for each state-land chunk. City land is free.")
             .defineInRange("upkeepPerChunk", 2, 0, 1_000_000);
 
+    public static final ModConfigSpec.IntValue UPKEEP_RELEASE_PER_DAY = BUILDER
+            .comment("State-land chunks released per nation when the treasury cannot pay upkeep.")
+            .defineInRange("upkeepReleasePerDay", 4, 0, 1024);
+
     static {
         BUILDER.pop();
     }

@@ -17,6 +17,7 @@ import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.compat.minecolonies.NationCityCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTerritoryCommands;
+import com.mrzeyner.colonynations.compat.minecolonies.NationUpkeep;
 import com.mrzeyner.colonynations.compat.numismatics.NationTreasuryCommands;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.CityRef;
@@ -92,7 +93,9 @@ public final class NationCommands {
                                                 .executes(ctx -> color(
                                                         ctx,
                                                         StringArgumentType.getString(ctx, "name"),
-                                                        StringArgumentType.getString(ctx, "color"))))))));
+                                                        StringArgumentType.getString(ctx, "color"))))))
+                        .then(Commands.literal("upkeep")
+                                .then(Commands.literal("run").executes(NationUpkeep::runCommand)))));
     }
 
     private static int create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {

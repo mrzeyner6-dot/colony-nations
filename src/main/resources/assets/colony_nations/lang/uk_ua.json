@@ -63,5 +63,8 @@
   "command.colony_nations.territory.state": "Державна земля: %s",
   "command.colony_nations.territory.city": "Міська земля: %s",
   "command.colony_nations.territory.limit": "Межа: %s",
-  "command.colony_nations.territory.upkeep": "Щоденне утримання: %s spur"
+  "command.colony_nations.territory.upkeep": "Щоденне утримання: %s spur",
+  "command.colony_nations.upkeep.paid": "Сплачено %s spur за утримання %s чанків. Скарбниця: %s.",
+  "command.colony_nations.upkeep.short": "Сплачено %s spur і відпущено %s чанків. Скарбниця: %s.",
+  "command.colony_nations.upkeep.ran": "Утримання території виконано."
 }

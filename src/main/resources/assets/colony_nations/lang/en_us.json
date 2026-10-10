@@ -63,5 +63,8 @@
   "command.colony_nations.territory.state": "State land: %s",
   "command.colony_nations.territory.city": "City land: %s",
   "command.colony_nations.territory.limit": "Limit: %s",
-  "command.colony_nations.territory.upkeep": "Daily upkeep: %s spurs"
+  "command.colony_nations.territory.upkeep": "Daily upkeep: %s spurs",
+  "command.colony_nations.upkeep.paid": "Paid %s spurs to keep %s chunks. Treasury: %s.",
+  "command.colony_nations.upkeep.short": "Paid %s spurs and released %s chunks. Treasury: %s.",
+  "command.colony_nations.upkeep.ran": "Ran territory upkeep."
 }
