@@ -2,6 +2,7 @@ package com.mrzeyner.colonynations.compat.numismatics;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +26,14 @@ public final class NumismaticsCoins {
             denominations.add(new CoinChange.Denomination(coin.getName(), coin.value));
         }
         return List.copyOf(denominations);
+    }
+
+    public static Map<String, Integer> maxStackById() {
+        Map<String, Integer> sizes = new LinkedHashMap<>();
+        for (Coin coin : Coin.values()) {
+            sizes.put(coin.getName(), Math.max(1, coin.asStack(1).getMaxStackSize()));
+        }
+        return Map.copyOf(sizes);
     }
 
     public static boolean isCoin(ItemStack stack) {

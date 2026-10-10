@@ -39,6 +39,7 @@
   "command.colony_nations.treasury.deposit.success": "Внесено %s spur до %s. Скарбниця: %s.",
   "command.colony_nations.treasury.withdraw.success": "Знято %s spur з %s. Скарбниця: %s.",
   "command.colony_nations.treasury.withdraw.insufficient": "У скарбниці %s лише %s spur.",
+  "command.colony_nations.treasury.withdraw.no_space": "Зараз можна зняти щонайбільше %s spur (вільних слотів: %s).",
   "command.colony_nations.treasury.withdraw.unpayable": "Цю суму не можна видати наявними монетами.",
   "command.colony_nations.treasury.overflow": "Скарбниця не вміщує такий внесок."
 }
