@@ -17,6 +17,18 @@ public final class Config {
                     "This is a server (common) option: the server plays the sound, so a client-only toggle would not apply.")
             .define("chatSounds", true);
 
+    static {
+        BUILDER.push("territory");
+    }
+
+    public static final ModConfigSpec.IntValue FOUNDING_RING_CHUNKS = BUILDER
+            .comment("Width, in chunks, of the free ring annexed around a colony when it joins a nation.")
+            .defineInRange("foundingRingChunks", 2, 0, 16);
+
+    static {
+        BUILDER.pop();
+    }
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private Config() {

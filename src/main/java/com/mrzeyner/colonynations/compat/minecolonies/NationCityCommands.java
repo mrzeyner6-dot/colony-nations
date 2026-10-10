@@ -134,8 +134,10 @@ public final class NationCityCommands {
         }
         data.setDirty();
         if (add) {
+            CityTerritory.onCityJoined(data, colony, source.getLevel().getGameTime());
             return Messages.event(source, "command.colony_nations.city.added", colony.getName(), colonyId, nation.name());
         }
+        ColonyClaimCache.get().invalidate(MineColoniesCities.cityRef(colony));
         return Messages.success(source, "command.colony_nations.city.removed", colony.getName(), colonyId, nation.name());
     }
 

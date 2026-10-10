@@ -51,6 +51,7 @@ public final class NationColonyEvents {
             CityRef city = MineColoniesCities.cityRef(colony);
             data.registry().addColony(nation.id(), city);
             data.setDirty();
+            CityTerritory.onCityJoined(data, colony, server.overworld().getGameTime());
         } catch (NationException exception) {
             ColonyNations.LOGGER.warn(
                     "Could not add colony {} in {} to nation {}",
@@ -87,6 +88,7 @@ public final class NationColonyEvents {
             return;
         }
         data.registry().removeColony(nation.id(), city);
+        ColonyClaimCache.get().invalidate(city);
         data.setDirty();
     }
 
