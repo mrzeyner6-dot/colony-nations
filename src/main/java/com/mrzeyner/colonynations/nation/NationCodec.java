@@ -11,25 +11,33 @@ import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
 
+import com.mrzeyner.colonynations.territory.ChunkRef;
+import com.mrzeyner.colonynations.territory.TerritoryMap;
+
 /**
  * Versioned binary form of a {@link NationRegistry}.
  * {@code NationSavedData} stores these bytes inside NBT so the round trip can be tested without Minecraft.
  */
 public final class NationCodec {
-    public static final int VERSION = 2;
+    public static final int VERSION = 3;
+    private static final int VERSION_WITH_NATIONS_ONLY = 2;
 
     static final Logger LOGGER = Logger.getLogger(NationCodec.class.getName());
 
     private static final Comparator<CityRef> CITY_ORDER =
             Comparator.comparing(CityRef::dimension).thenComparingInt(CityRef::colonyId);
+    private static final Comparator<ChunkRef> CHUNK_ORDER = Comparator.comparing(ChunkRef::dimension)
+            .thenComparingInt(ChunkRef::x)
+            .thenComparingInt(ChunkRef::z);
 
     /**
-     * @param warning set when the payload version is not {@link #VERSION}; the registry is then empty
+     * @param warning set when the payload version is neither 2 nor {@link #VERSION}; the registry is then empty
      * @param preserved original payload bytes when {@code warning} is set, so a later save can write them back
      * @param version payload version that was read
      */
-    public record Loaded(NationRegistry registry, String warning, byte[] preserved, int version) {
+    public record Loaded(NationRegistry registry, TerritoryMap territory, String warning, byte[] preserved, int version) {
         public Loaded {
+            territory = territory == null ? new TerritoryMap() : territory;
             preserved = preserved == null ? null : preserved.clone();
         }
 
@@ -42,14 +50,32 @@ public final class NationCodec {
     }
 
     public static byte[] write(NationRegistry registry) {
+        return write(registry, new TerritoryMap());
+    }
+
+    public static byte[] write(NationRegistry registry, TerritoryMap territory) {
+        return writeAt(VERSION, registry, territory);
+    }
+
+    /**
+     * Version 2 layout: nations only. Used to test migration to {@link #VERSION}.
+     */
+    static byte[] writeVersion2(NationRegistry registry) {
+        return writeAt(VERSION_WITH_NATIONS_ONLY, registry, new TerritoryMap());
+    }
+
+    private static byte[] writeAt(int version, NationRegistry registry, TerritoryMap territory) {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (DataOutputStream out = new DataOutputStream(bytes)) {
-            out.writeInt(VERSION);
+            out.writeInt(version);
             List<Nation> nations = new ArrayList<>(registry.all());
             nations.sort(Comparator.comparing(nation -> nation.id().toString()));
             out.writeInt(nations.size());
             for (Nation nation : nations) {
                 writeNation(out, nation);
+            }
+            if (version >= VERSION) {
+                writeTerritory(out, territory);
             }
         } catch (IOException exception) {
             throw new IllegalStateException("failed to write nations", exception);
@@ -64,7 +90,7 @@ public final class NationCodec {
         if (loaded.preserved() != null) {
             return loaded.preserved().clone();
         }
-        return write(loaded.registry());
+        return write(loaded.registry(), loaded.territory());
     }
 
     public static NationRegistry read(byte[] payload) {
@@ -78,9 +104,10 @@ public final class NationCodec {
     public static Loaded load(byte[] payload) {
         try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(payload))) {
             int version = in.readInt();
-            if (version != VERSION) {
+            if (version != VERSION && version != VERSION_WITH_NATIONS_ONLY) {
                 return new Loaded(
                         new NationRegistry(),
+                        new TerritoryMap(),
                         "Unknown nation save version " + version
                                 + " (expected " + VERSION
                                 + "). The original save was kept and nation changes are blocked.",
@@ -94,7 +121,8 @@ public final class NationCodec {
             }
             NationRegistry registry = new NationRegistry();
             registry.restore(nations);
-            return new Loaded(registry, null, null, version);
+            TerritoryMap territory = version >= VERSION ? readTerritory(in) : new TerritoryMap();
+            return new Loaded(registry, territory, null, null, version);
         } catch (IOException exception) {
             throw new IllegalStateException("failed to read nations", exception);
         }
@@ -142,5 +170,27 @@ public final class NationCodec {
 
     private static CityRef readCity(DataInputStream in) throws IOException {
         return new CityRef(in.readUTF(), in.readInt());
+    }
+
+    private static void writeTerritory(DataOutputStream out, TerritoryMap territory) throws IOException {
+        List<ChunkRef> chunks = new ArrayList<>(territory.claims().keySet());
+        chunks.sort(CHUNK_ORDER);
+        out.writeInt(chunks.size());
+        for (ChunkRef chunk : chunks) {
+            out.writeUTF(chunk.dimension());
+            out.writeInt(chunk.x());
+            out.writeInt(chunk.z());
+            out.writeUTF(territory.owner(chunk).orElseThrow().toString());
+        }
+    }
+
+    private static TerritoryMap readTerritory(DataInputStream in) throws IOException {
+        int count = in.readInt();
+        TerritoryMap territory = new TerritoryMap();
+        for (int i = 0; i < count; i++) {
+            ChunkRef chunk = new ChunkRef(in.readUTF(), in.readInt(), in.readInt());
+            territory.claim(chunk, UUID.fromString(in.readUTF()));
+        }
+        return territory;
     }
 }
