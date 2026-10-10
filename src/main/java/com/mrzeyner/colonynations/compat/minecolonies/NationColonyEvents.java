@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.data.NationSavedData;
+import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.nation.NationException;
 
@@ -43,10 +44,15 @@ public final class NationColonyEvents {
             return;
         }
         try {
-            data.registry().addColony(nation.id(), colony.getID());
+            CityRef city = MineColoniesCities.cityRef(colony);
+            data.registry().addColony(nation.id(), city);
             data.setDirty();
         } catch (NationException exception) {
-            ColonyNations.LOGGER.warn("Could not add colony {} to nation {}", colony.getID(), nation.name());
+            ColonyNations.LOGGER.warn(
+                    "Could not add colony {} in {} to nation {}",
+                    colony.getID(),
+                    colony.getDimension().location(),
+                    nation.name());
             return;
         }
         ServerPlayer player = server.getPlayerList().getPlayer(owner);
@@ -66,11 +72,12 @@ public final class NationColonyEvents {
             return;
         }
         NationSavedData data = NationSavedData.get(server);
-        Nation nation = data.registry().byColony(colony.getID()).orElse(null);
+        CityRef city = MineColoniesCities.cityRef(colony);
+        Nation nation = data.registry().byColony(city).orElse(null);
         if (nation == null) {
             return;
         }
-        data.registry().removeColony(nation.id(), colony.getID());
+        data.registry().removeColony(nation.id(), city);
         data.setDirty();
     }
 

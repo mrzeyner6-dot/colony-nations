@@ -28,7 +28,7 @@
   "command.colony_nations.city.not_owner": "Ви не власник колонії #%s.",
   "command.colony_nations.city.taken": "Колонія #%s вже належить іншій державі.",
   "command.colony_nations.city.list.header": "Міста держави %s:",
-  "command.colony_nations.city.list.entry": "- %s (#%s)%s",
+  "command.colony_nations.city.list.entry": "- %s (#%s, %s)%s",
   "command.colony_nations.city.list.empty": "У держави %s немає міст.",
   "command.colony_nations.city.capital_mark": " — столиця",
   "command.colony_nations.city.no_mark": "",

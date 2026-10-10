@@ -18,6 +18,7 @@ import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.compat.minecolonies.NationCityCommands;
 import com.mrzeyner.colonynations.compat.numismatics.NationTreasuryCommands;
 import com.mrzeyner.colonynations.data.NationSavedData;
+import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.nation.NationException;
 import com.mrzeyner.colonynations.nation.NationRegistry;
@@ -206,7 +207,7 @@ public final class NationCommands {
                     "command.colony_nations.list.entry",
                     nation.name(),
                     ownerLabel(source, nation.owner()),
-                    nation.colonyIds().size()), false);
+                    nation.cities().size()), false);
         }
         return 1;
     }
@@ -290,23 +291,27 @@ public final class NationCommands {
     }
 
     private static String capitalLabel(Nation nation) {
-        return nation.capitalColonyId() == null ? "—" : Integer.toString(nation.capitalColonyId());
+        return nation.capital() == null ? "—" : cityLabel(nation.capital());
     }
 
     private static String coloniesLabel(Nation nation) {
-        if (nation.colonyIds().isEmpty()) {
+        if (nation.cities().isEmpty()) {
             return "—";
         }
-        List<Integer> ids = new ArrayList<>(nation.colonyIds());
-        ids.sort(Comparator.naturalOrder());
+        List<CityRef> cities = new ArrayList<>(nation.cities());
+        cities.sort(Comparator.comparing(CityRef::dimension).thenComparingInt(CityRef::colonyId));
         StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < ids.size(); i++) {
+        for (int i = 0; i < cities.size(); i++) {
             if (i > 0) {
                 builder.append(", ");
             }
-            builder.append(ids.get(i));
+            builder.append(cityLabel(cities.get(i)));
         }
         return builder.toString();
+    }
+
+    private static String cityLabel(CityRef city) {
+        return city.dimension() + "#" + city.colonyId();
     }
 
     private static int ok(CommandSourceStack source, String key, Object... args) {

@@ -59,15 +59,36 @@ class NationRegistryTest {
         Nation rome = registry.create("Rome", UUID.randomUUID(), 1, 1L);
         Nation gaul = registry.create("Gaul", UUID.randomUUID(), 2, 2L);
 
-        rome = registry.addColony(rome.id(), 10);
-        assertEquals(10, rome.capitalColonyId());
-        rome = registry.addColony(rome.id(), 4);
-        assertEquals(10, rome.capitalColonyId());
-        assertEquals(rome.id(), registry.byColony(4).orElseThrow().id());
+        rome = registry.addColony(rome.id(), city(10));
+        assertEquals(city(10), rome.capital());
+        rome = registry.addColony(rome.id(), city(4));
+        assertEquals(city(10), rome.capital());
+        assertEquals(rome.id(), registry.byColony(city(4)).orElseThrow().id());
 
-        assertReason(NationException.Reason.COLONY_TAKEN, () -> registry.addColony(gaul.id(), 10));
-        registry.addColony(rome.id(), 4);
-        assertEquals(2, registry.byId(rome.id()).orElseThrow().colonyIds().size());
+        assertReason(NationException.Reason.COLONY_TAKEN, () -> registry.addColony(gaul.id(), city(10)));
+        registry.addColony(rome.id(), city(4));
+        assertEquals(2, registry.byId(rome.id()).orElseThrow().cities().size());
+    }
+
+    @Test
+    void sameColonyIdInDifferentDimensionsAreDifferentCities() {
+        NationRegistry registry = new NationRegistry();
+        Nation rome = registry.create("Rome", UUID.randomUUID(), 1, 1L);
+        Nation gaul = registry.create("Gaul", UUID.randomUUID(), 2, 2L);
+        CityRef overworld = city(3);
+        CityRef nether = new CityRef("minecraft:the_nether", 3);
+
+        rome = registry.addColony(rome.id(), overworld);
+        gaul = registry.addColony(gaul.id(), nether);
+
+        assertEquals(rome.id(), registry.byColony(overworld).orElseThrow().id());
+        assertEquals(gaul.id(), registry.byColony(nether).orElseThrow().id());
+        assertEquals(overworld, rome.capital());
+        assertEquals(nether, gaul.capital());
+
+        NationRegistry loaded = NationCodec.read(NationCodec.write(registry));
+        assertEquals(rome.id(), loaded.byColony(overworld).orElseThrow().id());
+        assertEquals(gaul.id(), loaded.byColony(nether).orElseThrow().id());
     }
 
     @Test
@@ -75,20 +96,20 @@ class NationRegistryTest {
         NationRegistry registry = new NationRegistry();
         Nation rome = registry.create("Rome", UUID.randomUUID(), 1, 1L);
         UUID id = rome.id();
-        registry.addColony(id, 10);
-        registry.addColony(id, 3);
-        registry.addColony(id, 7);
+        registry.addColony(id, city(10));
+        registry.addColony(id, city(3));
+        registry.addColony(id, city(7));
 
-        Nation after = registry.removeColony(id, 10);
-        assertEquals(3, after.capitalColonyId());
+        Nation after = registry.removeColony(id, city(10));
+        assertEquals(city(3), after.capital());
 
-        Nation kept = registry.removeColony(id, 3);
-        assertEquals(7, kept.capitalColonyId());
+        Nation kept = registry.removeColony(id, city(3));
+        assertEquals(city(7), kept.capital());
 
-        Nation empty = registry.removeColony(id, 7);
-        assertEquals(null, empty.capitalColonyId());
-        assertTrue(empty.colonyIds().isEmpty());
-        assertTrue(registry.byColony(7).isEmpty());
+        Nation empty = registry.removeColony(id, city(7));
+        assertEquals(null, empty.capital());
+        assertTrue(empty.cities().isEmpty());
+        assertTrue(registry.byColony(city(7)).isEmpty());
     }
 
     @Test
@@ -96,30 +117,30 @@ class NationRegistryTest {
         NationRegistry registry = new NationRegistry();
         UUID owner = UUID.randomUUID();
         Nation rome = registry.create("Rome", owner, 1, 1L);
-        registry.addColony(rome.id(), 5);
+        registry.addColony(rome.id(), city(5));
         registry.delete(rome.id());
 
         assertTrue(registry.byId(rome.id()).isEmpty());
         assertTrue(registry.byName("rome").isEmpty());
         assertTrue(registry.byOwner(owner).isEmpty());
-        assertTrue(registry.byColony(5).isEmpty());
+        assertTrue(registry.byColony(city(5)).isEmpty());
 
         Nation again = registry.create("Rome", owner, 2, 3L);
-        again = registry.addColony(again.id(), 5);
-        assertEquals(5, again.capitalColonyId());
+        again = registry.addColony(again.id(), city(5));
+        assertEquals(city(5), again.capital());
     }
 
     @Test
     void setCapitalMustBeAMemberColony() {
         NationRegistry registry = new NationRegistry();
         Nation rome = registry.create("Rome", UUID.randomUUID(), 1, 1L);
-        registry.addColony(rome.id(), 4);
-        registry.addColony(rome.id(), 9);
-        assertEquals(4, registry.byId(rome.id()).orElseThrow().capitalColonyId());
+        registry.addColony(rome.id(), city(4));
+        registry.addColony(rome.id(), city(9));
+        assertEquals(city(4), registry.byId(rome.id()).orElseThrow().capital());
 
-        Nation moved = registry.setCapital(rome.id(), 9);
-        assertEquals(9, moved.capitalColonyId());
-        assertReason(NationException.Reason.UNKNOWN_COLONY, () -> registry.setCapital(rome.id(), 1));
+        Nation moved = registry.setCapital(rome.id(), city(9));
+        assertEquals(city(9), moved.capital());
+        assertReason(NationException.Reason.UNKNOWN_COLONY, () -> registry.setCapital(rome.id(), city(1)));
     }
 
     @Test
@@ -128,9 +149,9 @@ class NationRegistryTest {
         UUID missing = UUID.randomUUID();
         assertReason(NationException.Reason.UNKNOWN_NATION, () -> registry.delete(missing));
         assertReason(NationException.Reason.UNKNOWN_NATION, () -> registry.rename(missing, "Rome"));
-        assertReason(NationException.Reason.UNKNOWN_NATION, () -> registry.addColony(missing, 1));
+        assertReason(NationException.Reason.UNKNOWN_NATION, () -> registry.addColony(missing, city(1)));
         Nation rome = registry.create("Rome", UUID.randomUUID(), 1, 1L);
-        assertReason(NationException.Reason.UNKNOWN_COLONY, () -> registry.removeColony(rome.id(), 9));
+        assertReason(NationException.Reason.UNKNOWN_COLONY, () -> registry.removeColony(rome.id(), city(9)));
     }
 
     @Test
@@ -138,9 +159,9 @@ class NationRegistryTest {
         NationRegistry registry = new NationRegistry();
         Nation rome = registry.create("Rome", UUID.randomUUID(), 0x112233, 100L);
         registry.setTreasury(rome.id(), 42L);
-        registry.addColony(rome.id(), 10);
-        registry.addColony(rome.id(), 2);
-        registry.addColony(rome.id(), 8);
+        registry.addColony(rome.id(), city(10));
+        registry.addColony(rome.id(), city(2));
+        registry.addColony(rome.id(), city(8));
 
         Nation empty = registry.create("Gaul", UUID.randomUUID(), 0, 7L);
         registry.setColor(empty.id(), 0xABCDEF);
@@ -149,13 +170,17 @@ class NationRegistryTest {
 
         assertEquals(registry.byId(rome.id()).orElseThrow(), loaded.byId(rome.id()).orElseThrow());
         assertEquals(registry.byId(empty.id()).orElseThrow(), loaded.byId(empty.id()).orElseThrow());
-        assertEquals(10, loaded.byId(rome.id()).orElseThrow().capitalColonyId());
-        assertEquals(null, loaded.byId(empty.id()).orElseThrow().capitalColonyId());
+        assertEquals(city(10), loaded.byId(rome.id()).orElseThrow().capital());
+        assertEquals(null, loaded.byId(empty.id()).orElseThrow().capital());
         assertEquals(42L, loaded.byId(rome.id()).orElseThrow().treasury());
         assertEquals(0xABCDEF, loaded.byName("gaul").orElseThrow().color());
         assertEquals(rome.owner(), loaded.byOwner(rome.owner()).orElseThrow().owner());
         assertEquals(100L, loaded.byId(rome.id()).orElseThrow().createdGameTime());
         assertEquals(2, loaded.all().size());
+    }
+
+    private static CityRef city(int colonyId) {
+        return new CityRef("minecraft:overworld", colonyId);
     }
 
     private static void assertReason(NationException.Reason reason, Runnable action) {

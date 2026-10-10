@@ -14,12 +14,15 @@ public final class Nation {
     public static final int MIN_NAME_LENGTH = 3;
     public static final int MAX_NAME_LENGTH = 24;
 
+    private static final Comparator<CityRef> CAPITAL_ORDER =
+            Comparator.comparingInt(CityRef::colonyId).thenComparing(CityRef::dimension);
+
     private final UUID id;
     private final String name;
     private final UUID owner;
     private final int color;
-    private final Integer capitalColonyId;
-    private final Set<Integer> colonyIds;
+    private final CityRef capital;
+    private final Set<CityRef> cities;
     private final long treasury;
     private final long createdGameTime;
 
@@ -28,19 +31,19 @@ public final class Nation {
             String name,
             UUID owner,
             int color,
-            Integer capitalColonyId,
-            Collection<Integer> colonyIds,
+            CityRef capital,
+            Collection<CityRef> cities,
             long treasury,
             long createdGameTime) {
         this.id = Objects.requireNonNull(id, "id");
         this.name = Objects.requireNonNull(name, "name");
         this.owner = Objects.requireNonNull(owner, "owner");
         this.color = color;
-        this.colonyIds = Set.copyOf(colonyIds);
-        if (capitalColonyId != null && !this.colonyIds.contains(capitalColonyId)) {
+        this.cities = Set.copyOf(cities);
+        if (capital != null && !this.cities.contains(capital)) {
             throw new IllegalArgumentException("capital is not one of the nation's colonies");
         }
-        this.capitalColonyId = capitalColonyId;
+        this.capital = capital;
         this.treasury = treasury;
         this.createdGameTime = createdGameTime;
     }
@@ -62,14 +65,14 @@ public final class Nation {
     }
 
     /**
-     * Capital colony id, or null when the nation has no cities yet.
+     * Capital city, or null when the nation has no cities yet.
      */
-    public Integer capitalColonyId() {
-        return capitalColonyId;
+    public CityRef capital() {
+        return capital;
     }
 
-    public Set<Integer> colonyIds() {
-        return colonyIds;
+    public Set<CityRef> cities() {
+        return cities;
     }
 
     public long treasury() {
@@ -81,51 +84,53 @@ public final class Nation {
     }
 
     public Nation withName(String name) {
-        return new Nation(id, name, owner, color, capitalColonyId, colonyIds, treasury, createdGameTime);
+        return new Nation(id, name, owner, color, capital, cities, treasury, createdGameTime);
     }
 
     public Nation withColor(int color) {
-        return new Nation(id, name, owner, color, capitalColonyId, colonyIds, treasury, createdGameTime);
+        return new Nation(id, name, owner, color, capital, cities, treasury, createdGameTime);
     }
 
     public Nation withTreasury(long treasury) {
-        return new Nation(id, name, owner, color, capitalColonyId, colonyIds, treasury, createdGameTime);
+        return new Nation(id, name, owner, color, capital, cities, treasury, createdGameTime);
     }
 
-    public Nation withCapital(int colonyId) {
-        if (!colonyIds.contains(colonyId)) {
+    public Nation withCapital(CityRef city) {
+        if (!cities.contains(city)) {
             throw new NationException(NationException.Reason.UNKNOWN_COLONY);
         }
-        return new Nation(id, name, owner, color, colonyId, colonyIds, treasury, createdGameTime);
+        return new Nation(id, name, owner, color, city, cities, treasury, createdGameTime);
     }
 
     /**
-     * Adds a colony. The first colony becomes the capital.
+     * Adds a city. The first city becomes the capital.
      */
-    public Nation addColony(int colonyId) {
-        if (colonyIds.contains(colonyId)) {
+    public Nation addCity(CityRef city) {
+        Objects.requireNonNull(city, "city");
+        if (cities.contains(city)) {
             return this;
         }
-        Set<Integer> next = new LinkedHashSet<>(colonyIds);
-        next.add(colonyId);
-        Integer capital = capitalColonyId == null ? colonyId : capitalColonyId;
-        return new Nation(id, name, owner, color, capital, next, treasury, createdGameTime);
+        Set<CityRef> next = new LinkedHashSet<>(cities);
+        next.add(city);
+        CityRef nextCapital = capital == null ? city : capital;
+        return new Nation(id, name, owner, color, nextCapital, next, treasury, createdGameTime);
     }
 
     /**
-     * Removes a colony. If it was the capital, the colony with the smallest id becomes the capital.
+     * Removes a city. If it was the capital, the city with the smallest colony id becomes the capital.
+     * Equal ids are ordered by dimension id.
      */
-    public Nation removeColony(int colonyId) {
-        if (!colonyIds.contains(colonyId)) {
+    public Nation removeCity(CityRef city) {
+        if (!cities.contains(city)) {
             throw new NationException(NationException.Reason.UNKNOWN_COLONY);
         }
-        Set<Integer> next = new LinkedHashSet<>(colonyIds);
-        next.remove(colonyId);
-        Integer capital = capitalColonyId;
-        if (Objects.equals(capital, colonyId)) {
-            capital = next.stream().min(Comparator.naturalOrder()).orElse(null);
+        Set<CityRef> next = new LinkedHashSet<>(cities);
+        next.remove(city);
+        CityRef nextCapital = capital;
+        if (Objects.equals(nextCapital, city)) {
+            nextCapital = next.stream().min(CAPITAL_ORDER).orElse(null);
         }
-        return new Nation(id, name, owner, color, capital, next, treasury, createdGameTime);
+        return new Nation(id, name, owner, color, nextCapital, next, treasury, createdGameTime);
     }
 
     @Override
@@ -142,12 +147,12 @@ public final class Nation {
                 && id.equals(nation.id)
                 && name.equals(nation.name)
                 && owner.equals(nation.owner)
-                && Objects.equals(capitalColonyId, nation.capitalColonyId)
-                && colonyIds.equals(nation.colonyIds);
+                && Objects.equals(capital, nation.capital)
+                && cities.equals(nation.cities);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, owner, color, capitalColonyId, colonyIds, treasury, createdGameTime);
+        return Objects.hash(id, name, owner, color, capital, cities, treasury, createdGameTime);
     }
 }

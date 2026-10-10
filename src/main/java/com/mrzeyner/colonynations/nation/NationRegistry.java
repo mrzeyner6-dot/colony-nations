@@ -12,13 +12,13 @@ import java.util.UUID;
 
 /**
  * In-memory nations. Names are unique ignoring case. One nation per owner.
- * A colony belongs to at most one nation.
+ * A city (dimension + colony id) belongs to at most one nation.
  */
 public final class NationRegistry {
     private final Map<UUID, Nation> nations = new HashMap<>();
     private final Map<String, UUID> idByName = new HashMap<>();
     private final Map<UUID, UUID> idByOwner = new HashMap<>();
-    private final Map<Integer, UUID> idByColony = new HashMap<>();
+    private final Map<CityRef, UUID> idByCity = new HashMap<>();
 
     public Nation create(String name, UUID owner, int color, long createdGameTime) {
         Objects.requireNonNull(owner, "owner");
@@ -38,8 +38,8 @@ public final class NationRegistry {
         Nation removed = nations.remove(requireNation(nationId).id());
         idByName.remove(nameKey(removed.name()));
         idByOwner.remove(removed.owner());
-        for (int colonyId : removed.colonyIds()) {
-            idByColony.remove(colonyId);
+        for (CityRef city : removed.cities()) {
+            idByCity.remove(city);
         }
     }
 
@@ -57,29 +57,30 @@ public final class NationRegistry {
         return renamed;
     }
 
-    public Nation addColony(UUID nationId, int colonyId) {
+    public Nation addColony(UUID nationId, CityRef city) {
+        Objects.requireNonNull(city, "city");
         Nation current = requireNation(nationId);
-        UUID ownerNation = idByColony.get(colonyId);
+        UUID ownerNation = idByCity.get(city);
         if (ownerNation != null && !ownerNation.equals(nationId)) {
             throw new NationException(NationException.Reason.COLONY_TAKEN);
         }
-        if (current.colonyIds().contains(colonyId)) {
+        if (current.cities().contains(city)) {
             return current;
         }
-        Nation updated = current.addColony(colonyId);
+        Nation updated = current.addCity(city);
         nations.put(nationId, updated);
-        idByColony.put(colonyId, nationId);
+        idByCity.put(city, nationId);
         return updated;
     }
 
-    public Nation removeColony(UUID nationId, int colonyId) {
+    public Nation removeColony(UUID nationId, CityRef city) {
         Nation current = requireNation(nationId);
-        if (!current.colonyIds().contains(colonyId)) {
+        if (!current.cities().contains(city)) {
             throw new NationException(NationException.Reason.UNKNOWN_COLONY);
         }
-        Nation updated = current.removeColony(colonyId);
+        Nation updated = current.removeCity(city);
         nations.put(nationId, updated);
-        idByColony.remove(colonyId);
+        idByCity.remove(city);
         return updated;
     }
 
@@ -89,8 +90,8 @@ public final class NationRegistry {
         return updated;
     }
 
-    public Nation setCapital(UUID nationId, int colonyId) {
-        Nation updated = requireNation(nationId).withCapital(colonyId);
+    public Nation setCapital(UUID nationId, CityRef city) {
+        Nation updated = requireNation(nationId).withCapital(city);
         nations.put(nationId, updated);
         return updated;
     }
@@ -116,8 +117,11 @@ public final class NationRegistry {
         return Optional.ofNullable(nations.get(idByOwner.get(owner)));
     }
 
-    public Optional<Nation> byColony(int colonyId) {
-        return Optional.ofNullable(nations.get(idByColony.get(colonyId)));
+    public Optional<Nation> byColony(CityRef city) {
+        if (city == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(nations.get(idByCity.get(city)));
     }
 
     public Collection<Nation> all() {
@@ -131,15 +135,15 @@ public final class NationRegistry {
         nations.clear();
         idByName.clear();
         idByOwner.clear();
-        idByColony.clear();
+        idByCity.clear();
         for (Nation nation : saved) {
             if (nations.containsKey(nation.id())
                     || idByName.containsKey(nameKey(nation.name()))
                     || idByOwner.containsKey(nation.owner())) {
                 throw new IllegalStateException("saved nations violate uniqueness");
             }
-            for (int colonyId : nation.colonyIds()) {
-                if (idByColony.containsKey(colonyId)) {
+            for (CityRef city : nation.cities()) {
+                if (idByCity.containsKey(city)) {
                     throw new IllegalStateException("saved nations share a colony");
                 }
             }
@@ -159,8 +163,8 @@ public final class NationRegistry {
         nations.put(nation.id(), nation);
         idByName.put(nameKey(nation.name()), nation.id());
         idByOwner.put(nation.owner(), nation.id());
-        for (int colonyId : nation.colonyIds()) {
-            idByColony.put(colonyId, nation.id());
+        for (CityRef city : nation.cities()) {
+            idByCity.put(city, nation.id());
         }
     }
 

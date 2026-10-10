@@ -28,7 +28,7 @@
   "command.colony_nations.city.not_owner": "You do not own colony #%s.",
   "command.colony_nations.city.taken": "Colony #%s already belongs to another nation.",
   "command.colony_nations.city.list.header": "Cities of %s:",
-  "command.colony_nations.city.list.entry": "- %s (#%s)%s",
+  "command.colony_nations.city.list.entry": "- %s (#%s, %s)%s",
   "command.colony_nations.city.list.empty": "%s has no cities.",
   "command.colony_nations.city.capital_mark": " — capital",
   "command.colony_nations.city.no_mark": "",

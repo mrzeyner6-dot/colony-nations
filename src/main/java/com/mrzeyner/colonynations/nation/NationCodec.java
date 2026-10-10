@@ -15,7 +15,10 @@ import java.util.UUID;
  * {@code NationSavedData} stores these bytes inside NBT so the round trip can be tested without Minecraft.
  */
 public final class NationCodec {
-    public static final int VERSION = 1;
+    public static final int VERSION = 2;
+
+    private static final Comparator<CityRef> CITY_ORDER =
+            Comparator.comparing(CityRef::dimension).thenComparingInt(CityRef::colonyId);
 
     private NationCodec() {
     }
@@ -60,15 +63,15 @@ public final class NationCodec {
         out.writeUTF(nation.name());
         out.writeUTF(nation.owner().toString());
         out.writeInt(nation.color());
-        out.writeBoolean(nation.capitalColonyId() != null);
-        if (nation.capitalColonyId() != null) {
-            out.writeInt(nation.capitalColonyId());
+        out.writeBoolean(nation.capital() != null);
+        if (nation.capital() != null) {
+            writeCity(out, nation.capital());
         }
-        List<Integer> colonies = new ArrayList<>(nation.colonyIds());
-        colonies.sort(Comparator.naturalOrder());
-        out.writeInt(colonies.size());
-        for (int colonyId : colonies) {
-            out.writeInt(colonyId);
+        List<CityRef> cities = new ArrayList<>(nation.cities());
+        cities.sort(CITY_ORDER);
+        out.writeInt(cities.size());
+        for (CityRef city : cities) {
+            writeCity(out, city);
         }
         out.writeLong(nation.treasury());
         out.writeLong(nation.createdGameTime());
@@ -79,14 +82,23 @@ public final class NationCodec {
         String name = in.readUTF();
         UUID owner = UUID.fromString(in.readUTF());
         int color = in.readInt();
-        Integer capital = in.readBoolean() ? in.readInt() : null;
-        int colonyCount = in.readInt();
-        List<Integer> colonies = new ArrayList<>(colonyCount);
-        for (int i = 0; i < colonyCount; i++) {
-            colonies.add(in.readInt());
+        CityRef capital = in.readBoolean() ? readCity(in) : null;
+        int cityCount = in.readInt();
+        List<CityRef> cities = new ArrayList<>(cityCount);
+        for (int i = 0; i < cityCount; i++) {
+            cities.add(readCity(in));
         }
         long treasury = in.readLong();
         long createdGameTime = in.readLong();
-        return new Nation(id, name, owner, color, capital, colonies, treasury, createdGameTime);
+        return new Nation(id, name, owner, color, capital, cities, treasury, createdGameTime);
+    }
+
+    private static void writeCity(DataOutputStream out, CityRef city) throws IOException {
+        out.writeUTF(city.dimension());
+        out.writeInt(city.colonyId());
+    }
+
+    private static CityRef readCity(DataInputStream in) throws IOException {
+        return new CityRef(in.readUTF(), in.readInt());
     }
 }

@@ -9,21 +9,24 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
-import com.minecolonies.api.IMinecoloniesAPI;
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.IColonyManager;
 
 import com.mrzeyner.colonynations.data.NationSavedData;
+import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.nation.NationException;
 import com.mrzeyner.colonynations.nation.NationRegistry;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 
 /**
  * /nation city and /nation capital. The player must own both the nation and the colony.
+ * Commands still take a colony id; the dimension is read from the colony.
  */
 public final class NationCityCommands {
     private NationCityCommands() {
@@ -49,12 +52,13 @@ public final class NationCityCommands {
             return fail(source, "command.colony_nations.info.none");
         }
         int colonyId = IntegerArgumentType.getInteger(ctx, "colonyId");
-        if (!nation.colonyIds().contains(colonyId)) {
+        CityRef city = MineColoniesCities.member(nation, colonyId, player.level().dimension());
+        if (city == null) {
             return fail(source, "command.colony_nations.capital.not_in_nation", colonyId, nation.name());
         }
-        data.registry().setCapital(nation.id(), colonyId);
+        data.registry().setCapital(nation.id(), city);
         data.setDirty();
-        return ok(source, "command.colony_nations.capital.success", nation.name(), colonyLabel(colonyId), colonyId);
+        return ok(source, "command.colony_nations.capital.success", nation.name(), colonyLabel(city), colonyId);
     }
 
     public static int list(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -67,22 +71,23 @@ public final class NationCityCommands {
         if (nation == null) {
             return fail(source, "command.colony_nations.info.none");
         }
-        if (nation.colonyIds().isEmpty()) {
+        if (nation.cities().isEmpty()) {
             return fail(source, "command.colony_nations.city.list.empty", nation.name());
         }
-        List<Integer> ids = new ArrayList<>(nation.colonyIds());
-        ids.sort(Comparator.naturalOrder());
+        List<CityRef> cities = new ArrayList<>(nation.cities());
+        cities.sort(Comparator.comparing(CityRef::dimension).thenComparingInt(CityRef::colonyId));
         source.sendSuccess(() -> Component.translatable("command.colony_nations.city.list.header", nation.name()), false);
-        for (int colonyId : ids) {
-            boolean capital = colonyId == (nation.capitalColonyId() == null ? Integer.MIN_VALUE : nation.capitalColonyId());
+        for (CityRef city : cities) {
+            boolean capital = city.equals(nation.capital());
             String markKey = capital
                     ? "command.colony_nations.city.capital_mark"
                     : "command.colony_nations.city.no_mark";
-            String name = colonyLabel(colonyId);
+            String name = colonyLabel(city);
             source.sendSuccess(() -> Component.translatable(
                     "command.colony_nations.city.list.entry",
                     name,
-                    colonyId,
+                    city.colonyId(),
+                    city.dimension(),
                     Component.translatable(markKey)), false);
         }
         return 1;
@@ -95,10 +100,12 @@ public final class NationCityCommands {
             return fail(source, "command.colony_nations.players_only");
         }
         int colonyId = IntegerArgumentType.getInteger(ctx, "colonyId");
-        IColony colony = findOwned(colonyId, player.getUUID());
+        ResourceKey<Level> here = player.level().dimension();
+        IColony colony = MineColoniesCities.findOwned(colonyId, player.getUUID(), here);
         if (colony == null) {
             return missingColony(source, colonyId, player.getUUID());
         }
+        CityRef city = MineColoniesCities.cityRef(colony);
         NationSavedData data = NationSavedData.get(source.getServer());
         NationRegistry registry = data.registry();
         Nation nation = registry.byOwner(player.getUUID()).orElse(null);
@@ -107,11 +114,11 @@ public final class NationCityCommands {
         }
         try {
             if (add) {
-                registry.addColony(nation.id(), colonyId);
-            } else if (!nation.colonyIds().contains(colonyId)) {
+                registry.addColony(nation.id(), city);
+            } else if (!nation.cities().contains(city)) {
                 return fail(source, "command.colony_nations.capital.not_in_nation", colonyId, nation.name());
             } else {
-                registry.removeColony(nation.id(), colonyId);
+                registry.removeColony(nation.id(), city);
             }
         } catch (NationException exception) {
             if (exception.reason() == NationException.Reason.COLONY_TAKEN) {
@@ -125,38 +132,27 @@ public final class NationCityCommands {
     }
 
     private static int missingColony(CommandSourceStack source, int colonyId, UUID owner) {
-        IColony any = findById(colonyId);
-        if (any == null) {
-            return fail(source, "command.colony_nations.city.unknown", colonyId);
+        boolean seen = false;
+        boolean owned = false;
+        for (IColony colony : IColonyManager.getInstance().getAllColonies()) {
+            if (colony.getID() != colonyId) {
+                continue;
+            }
+            seen = true;
+            if (owner.equals(colony.getPermissions().getOwner())) {
+                owned = true;
+            }
         }
-        if (!owner.equals(any.getPermissions().getOwner())) {
+        if (seen && !owned) {
             return fail(source, "command.colony_nations.city.not_owner", colonyId);
         }
         return fail(source, "command.colony_nations.city.unknown", colonyId);
     }
 
-    static IColony findOwned(int colonyId, UUID owner) {
-        for (IColony colony : IColonyManager.getInstance().getAllColonies()) {
-            if (colony.getID() == colonyId && owner.equals(colony.getPermissions().getOwner())) {
-                return colony;
-            }
-        }
-        return null;
-    }
-
-    private static IColony findById(int colonyId) {
-        for (IColony colony : IMinecoloniesAPI.getInstance().getColonyManager().getAllColonies()) {
-            if (colony.getID() == colonyId) {
-                return colony;
-            }
-        }
-        return null;
-    }
-
-    private static String colonyLabel(int colonyId) {
-        IColony colony = findById(colonyId);
+    private static String colonyLabel(CityRef city) {
+        IColony colony = MineColoniesCities.findByCity(city);
         if (colony == null || colony.getName() == null || colony.getName().isBlank()) {
-            return "#" + colonyId;
+            return "#" + city.colonyId();
         }
         return colony.getName();
     }
