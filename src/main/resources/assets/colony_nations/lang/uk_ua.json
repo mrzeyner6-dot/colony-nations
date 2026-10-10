@@ -20,5 +20,18 @@
   "command.colony_nations.not_owner": "Змінювати державу може лише власник.",
   "command.colony_nations.list.header": "Держави (%s):",
   "command.colony_nations.list.entry": "- %s (власник %s, колоній %s)",
-  "command.colony_nations.list.empty": "Держав ще немає."
+  "command.colony_nations.list.empty": "Держав ще немає.",
+  "command.colony_nations.city.added": "Додано %s (#%s) до %s.",
+  "command.colony_nations.city.removed": "Прибрано %s (#%s) з %s.",
+  "command.colony_nations.city.auto": "Колонія %s (#%s) приєдналась до %s.",
+  "command.colony_nations.city.unknown": "Колонію #%s не знайдено.",
+  "command.colony_nations.city.not_owner": "Ви не власник колонії #%s.",
+  "command.colony_nations.city.taken": "Колонія #%s вже належить іншій державі.",
+  "command.colony_nations.city.list.header": "Міста держави %s:",
+  "command.colony_nations.city.list.entry": "- %s (#%s)%s",
+  "command.colony_nations.city.list.empty": "У держави %s немає міст.",
+  "command.colony_nations.city.capital_mark": " — столиця",
+  "command.colony_nations.city.no_mark": "",
+  "command.colony_nations.capital.success": "Столиця держави %s тепер %s (#%s).",
+  "command.colony_nations.capital.not_in_nation": "Колонія #%s не входить до %s."
 }

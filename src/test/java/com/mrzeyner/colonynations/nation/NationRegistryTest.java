@@ -110,6 +110,19 @@ class NationRegistryTest {
     }
 
     @Test
+    void setCapitalMustBeAMemberColony() {
+        NationRegistry registry = new NationRegistry();
+        Nation rome = registry.create("Rome", UUID.randomUUID(), 1, 1L);
+        registry.addColony(rome.id(), 4);
+        registry.addColony(rome.id(), 9);
+        assertEquals(4, registry.byId(rome.id()).orElseThrow().capitalColonyId());
+
+        Nation moved = registry.setCapital(rome.id(), 9);
+        assertEquals(9, moved.capitalColonyId());
+        assertReason(NationException.Reason.UNKNOWN_COLONY, () -> registry.setCapital(rome.id(), 1));
+    }
+
+    @Test
     void unknownNationAndColony() {
         NationRegistry registry = new NationRegistry();
         UUID missing = UUID.randomUUID();

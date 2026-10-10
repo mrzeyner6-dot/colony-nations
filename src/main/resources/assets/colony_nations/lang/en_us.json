@@ -20,5 +20,18 @@
   "command.colony_nations.not_owner": "Only the owner can change this nation.",
   "command.colony_nations.list.header": "Nations (%s):",
   "command.colony_nations.list.entry": "- %s (owner %s, colonies %s)",
-  "command.colony_nations.list.empty": "There are no nations."
+  "command.colony_nations.list.empty": "There are no nations.",
+  "command.colony_nations.city.added": "Added %s (#%s) to %s.",
+  "command.colony_nations.city.removed": "Removed %s (#%s) from %s.",
+  "command.colony_nations.city.auto": "Colony %s (#%s) joined %s.",
+  "command.colony_nations.city.unknown": "Colony #%s was not found.",
+  "command.colony_nations.city.not_owner": "You do not own colony #%s.",
+  "command.colony_nations.city.taken": "Colony #%s already belongs to another nation.",
+  "command.colony_nations.city.list.header": "Cities of %s:",
+  "command.colony_nations.city.list.entry": "- %s (#%s)%s",
+  "command.colony_nations.city.list.empty": "%s has no cities.",
+  "command.colony_nations.city.capital_mark": " — capital",
+  "command.colony_nations.city.no_mark": "",
+  "command.colony_nations.capital.success": "Capital of %s is now %s (#%s).",
+  "command.colony_nations.capital.not_in_nation": "Colony #%s is not part of %s."
 }

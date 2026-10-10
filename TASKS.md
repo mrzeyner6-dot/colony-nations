@@ -144,7 +144,7 @@
 У грі: зайти гравцем, пройти create → info → color → rename → disband двічі; оператором змінити чужу державу через admin; перевірити, що після рестарту `/nation list` той самий.
 
 ### T7. Міста: прив'язка колоній до держави
-Статус: TODO (залежить від T4)
+Статус: DONE
 
 - Колонія, створена гравцем із державою, автоматично додається до його держави.
 - `/nation city add <colonyId>` і `/nation city remove <colonyId>` — для власника колонії, що є власником держави.
@@ -153,6 +153,21 @@
 - Видалення колонії в MineColonies прибирає її з держави.
 
 Готово, коли: `build` проходить; у звіті — які події MineColonies використано і що перевірити в грі.
+
+Звіт:
+- Події власної шини MineColonies (не NeoForge), підписка в `NationColonyEvents.register` з `FMLCommonSetupEvent.enqueueWork`:
+  - `ColonyCreatedModEvent` — якщо власник нової колонії вже має державу, колонія додається до неї (перша стає столицею). Гравцю йде `command.colony_nations.city.auto`.
+  - `ColonyDeletedModEvent` (`ColonyManager` поститься перед видаленням) — id колонії прибирається з держави; якщо це була столиця, столицею стає колонія з найменшим id.
+- Команди (власник держави і власник колонії в MineColonies):
+  - `/nation city add <colonyId>` → `Added MyColony (#3) to Rome.`
+  - `/nation city remove <colonyId>` → `Removed MyColony (#3) from Rome.`
+  - `/nation city list` → `Cities of Rome:` / `- MyColony (#3) — capital` / `- Outpost (#4)`
+  - `/nation capital <colonyId>` → `Capital of Rome is now Outpost (#4).`
+  - чужа колонія → `You do not own colony #3.`
+  - немає в державі → `Colony #3 is not part of Rome.`
+- Id колонії в MineColonies унікальний у межах виміру, а в моделі держави зберігається лише `int`. Якщо в різних вимірах збіжаться id, `byColony` може зачепити не ту. Для етапу 1 (overworld) цього достатньо.
+- `./gradlew build` пройшов. `runServer` дійшов до `Done`, common setup без помилки.
+- У грі: заснувати державу, поставити ратушу — колонія має з'явитись у `/nation city list` як столиця; другу колонію додати командою (поки гравець не може мати другу колонію MineColonies — це T8); `/nation capital`; видалити колонію в MineColonies і перевірити, що її немає в списку міст.
 
 ### T8. Кілька колоній на одного гравця
 Статус: TODO (залежить від T4)

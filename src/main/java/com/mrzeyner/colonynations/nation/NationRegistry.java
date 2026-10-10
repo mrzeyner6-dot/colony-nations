@@ -89,6 +89,12 @@ public final class NationRegistry {
         return updated;
     }
 
+    public Nation setCapital(UUID nationId, int colonyId) {
+        Nation updated = requireNation(nationId).withCapital(colonyId);
+        nations.put(nationId, updated);
+        return updated;
+    }
+
     public Nation setTreasury(UUID nationId, long treasury) {
         Nation updated = requireNation(nationId).withTreasury(treasury);
         nations.put(nationId, updated);

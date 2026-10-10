@@ -4,6 +4,8 @@ import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 
+import com.mrzeyner.colonynations.compat.minecolonies.NationColonyEvents;
+
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
@@ -25,6 +27,7 @@ public class ColonyNations {
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
+        event.enqueueWork(NationColonyEvents::register);
         LOGGER.info("Colony Nations common setup");
     }
 

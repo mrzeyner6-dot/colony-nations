@@ -11,8 +11,11 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.Config;
+import com.mrzeyner.colonynations.compat.minecolonies.NationCityCommands;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.nation.NationException;
@@ -56,6 +59,17 @@ public final class NationCommands {
                         .then(Commands.argument("name", StringArgumentType.string())
                                 .executes(ctx -> info(ctx, StringArgumentType.getString(ctx, "name")))))
                 .then(Commands.literal("list").executes(NationCommands::list))
+                .then(Commands.literal("city")
+                        .then(Commands.literal("add")
+                                .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
+                                        .executes(NationCityCommands::add)))
+                        .then(Commands.literal("remove")
+                                .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
+                                        .executes(NationCityCommands::remove)))
+                        .then(Commands.literal("list").executes(NationCityCommands::list)))
+                .then(Commands.literal("capital")
+                        .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
+                                .executes(NationCityCommands::capital)))
                 .then(Commands.literal("admin")
                         .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("name", StringArgumentType.string())

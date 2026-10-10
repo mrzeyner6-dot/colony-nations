@@ -92,6 +92,13 @@ public final class Nation {
         return new Nation(id, name, owner, color, capitalColonyId, colonyIds, treasury, createdGameTime);
     }
 
+    public Nation withCapital(int colonyId) {
+        if (!colonyIds.contains(colonyId)) {
+            throw new NationException(NationException.Reason.UNKNOWN_COLONY);
+        }
+        return new Nation(id, name, owner, color, colonyId, colonyIds, treasury, createdGameTime);
+    }
+
     /**
      * Adds a colony. The first colony becomes the capital.
      */
