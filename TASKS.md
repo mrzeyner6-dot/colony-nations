@@ -28,12 +28,19 @@
 - У грі: перевірити, що мод є в списку модів під назвою Colony Nations 0.1.0.
 
 ### T2. Налаштувати юніт-тести
-Статус: TODO
+Статус: DONE
 
 - Додати JUnit 5 у `build.gradle` (`testImplementation`, `useJUnitPlatform()`).
 - Один тест-заглушка в `src/test/java/com/mrzeyner/colonynations/SanityTest.java`.
 
 Готово, коли: `./gradlew test` запускає тест і він проходить; `build` теж запускає тести.
+
+Звіт:
+- У `build.gradle` додано JUnit 5.11.4 (`junit-bom` + `junit-jupiter`) і `useJUnitPlatform()`.
+- Gradle 9 не кладе JUnit Platform launcher на classpath тестів сам, тому додано `testRuntimeOnly` `junit-platform-launcher` (версію бере BOM).
+- Заглушка: `src/test/java/com/mrzeyner/colonynations/SanityTest.java` (`junitPlatformRuns`).
+- `./gradlew test` і `./gradlew build` пройшли; у `TEST-com.mrzeyner.colonynations.SanityTest.xml` один тест, failures=0.
+- У грі перевіряти нічого.
 
 ### T3. Підключити MineColonies
 Статус: TODO
