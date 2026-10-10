@@ -65,7 +65,7 @@
 - На DEBUG MineColonies ловить `IllegalStateException` для loot table `minecolonies:entities/cavalry_horse` під час compat discovery. Процес після цього лишається живим. У грі перевірити, чи попередження повторюється і чи не ламає рецепти або рейди.
 
 ### T4. Дослідити API MineColonies (без коду мода)
-Статус: TODO
+Статус: DONE
 
 Створи `docs/notes/minecolonies-api.md` з відповідями (назви класів/методів, короткі приклади):
 1. Як отримати колонію за id і всі колонії світу (`IColonyManager` тощо).
@@ -77,6 +77,13 @@
 7. Як отримати межі клейму колонії (чанки).
 
 Готово, коли: файл є, кожен пункт має відповідь або чесне «не знайдено, шукав у …».
+
+Звіт:
+- Файл `docs/notes/minecolonies-api.md`. Джерело — sources jar `com.ldtteam:minecolonies:1.1.1403-1.21.1`. Коду мода не додавав.
+- Усі 7 пунктів мають відповідь. Окремої NeoForge-події на створення/видалення колонії, рівень ратуші чи нового жителя немає: це власна шина `IMinecoloniesAPI.getEventBus()` (`ColonyCreatedModEvent`, `ColonyDeletedModEvent` з `ColonyManager`, `CitizenAddedModEvent`, `BuildingConstructionModEvent` для завершеного наряду ратуші).
+- Конфіг `allowinfinitecolonies` є (default false), але сервер його не читає при заснуванні. Заборона другої колонії — `CreateColonyMessage.onExecute` через `getIColonyByOwner` по всіх колоніях. Це вхід для Mixin у T8.
+- Числового віку жителя і прямого setter щастя немає: вік — `isChild()`, щастя колонії — середнє модифікаторів жителів.
+- У грі перевіряти нічого.
 
 ### T5. Модель держави
 Статус: TODO
