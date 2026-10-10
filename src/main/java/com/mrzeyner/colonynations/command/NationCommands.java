@@ -25,7 +25,6 @@ import com.mrzeyner.colonynations.nation.NationRegistry;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -98,7 +97,7 @@ public final class NationCommands {
         }
         ServerPlayer player = player(ctx.getSource());
         if (player == null) {
-            return fail(ctx.getSource(), "command.colony_nations.players_only");
+            return Messages.error(ctx.getSource(), "command.colony_nations.players_only");
         }
         NationSavedData data = saved(ctx);
         NationRegistry registry = data.registry();
@@ -109,7 +108,7 @@ public final class NationCommands {
                     0xFFFFFF,
                     ctx.getSource().getLevel().getGameTime());
             data.setDirty();
-            return ok(ctx.getSource(), "command.colony_nations.create.success", nation.name());
+            return Messages.event(ctx.getSource(), "command.colony_nations.create.success", nation.name());
         } catch (NationException exception) {
             return failRule(ctx.getSource(), exception);
         }
@@ -128,15 +127,15 @@ public final class NationCommands {
         long windowTicks = Config.DISBAND_CONFIRM_SECONDS.get() * TICKS_PER_SECOND;
         String key = actorKey(source) + ":" + nation.id();
         if (!DISBANDS.confirm(key, source.getLevel().getGameTime(), windowTicks)) {
-            source.sendSuccess(() -> Component.translatable(
+            return Messages.info(
+                    source,
                     "command.colony_nations.disband.confirm",
                     nation.name(),
-                    Config.DISBAND_CONFIRM_SECONDS.get()), false);
-            return 1;
+                    Config.DISBAND_CONFIRM_SECONDS.get());
         }
         data.registry().delete(nation.id());
         data.setDirty();
-        return ok(source, "command.colony_nations.disband.success", nation.name());
+        return Messages.success(source, "command.colony_nations.disband.success", nation.name());
     }
 
     private static int rename(CommandContext<CommandSourceStack> ctx, String nationName, String newName) throws CommandSyntaxException {
@@ -153,7 +152,7 @@ public final class NationCommands {
         try {
             Nation renamed = data.registry().rename(nation.id(), newName);
             data.setDirty();
-            return ok(source, "command.colony_nations.rename.success", previous, renamed.name());
+            return Messages.success(source, "command.colony_nations.rename.success", previous, renamed.name());
         } catch (NationException exception) {
             return failRule(source, exception);
         }
@@ -166,7 +165,7 @@ public final class NationCommands {
         }
         Integer rgb = NationColors.parse(rawColor);
         if (rgb == null) {
-            return fail(source, "command.colony_nations.color.invalid");
+            return Messages.error(source, "command.colony_nations.color.invalid");
         }
         NationSavedData data = saved(ctx);
         Nation nation = resolveMutable(source, data.registry(), nationName);
@@ -175,7 +174,7 @@ public final class NationCommands {
         }
         data.registry().setColor(nation.id(), rgb);
         data.setDirty();
-        return ok(source, "command.colony_nations.color.success", nation.name(), formatColor(rgb));
+        return Messages.success(source, "command.colony_nations.color.success", nation.name(), formatColor(rgb));
     }
 
     private static int info(CommandContext<CommandSourceStack> ctx, String nationName) throws CommandSyntaxException {
@@ -185,24 +184,24 @@ public final class NationCommands {
         if (nationName == null) {
             ServerPlayer player = player(source);
             if (player == null) {
-                return fail(source, "command.colony_nations.players_only");
+                return Messages.error(source, "command.colony_nations.players_only");
             }
             nation = registry.byOwner(player.getUUID()).orElse(null);
             if (nation == null) {
-                return fail(source, "command.colony_nations.info.none");
+                return Messages.error(source, "command.colony_nations.info.none");
             }
         } else {
             nation = registry.byName(nationName).orElse(null);
             if (nation == null) {
-                return fail(source, "command.colony_nations.unknown", nationName);
+                return Messages.error(source, "command.colony_nations.unknown", nationName);
             }
         }
-        source.sendSuccess(() -> Component.translatable("command.colony_nations.info.header", nation.name()), false);
-        source.sendSuccess(() -> Component.translatable("command.colony_nations.info.owner", ownerLabel(source, nation.owner())), false);
-        source.sendSuccess(() -> Component.translatable("command.colony_nations.info.color", formatColor(nation.color())), false);
-        source.sendSuccess(() -> Component.translatable("command.colony_nations.info.capital", capitalLabel(nation)), false);
-        source.sendSuccess(() -> Component.translatable("command.colony_nations.info.colonies", coloniesLabel(nation)), false);
-        source.sendSuccess(() -> Component.translatable("command.colony_nations.info.treasury", nation.treasury()), false);
+        Messages.header(source, "command.colony_nations.info.header", nation.name());
+        Messages.line(source, "command.colony_nations.info.owner", ownerLabel(source, nation.owner()));
+        Messages.line(source, "command.colony_nations.info.color", Messages.swatch(nation.color()), formatColor(nation.color()));
+        Messages.line(source, "command.colony_nations.info.capital", capitalLabel(nation));
+        Messages.line(source, "command.colony_nations.info.colonies", coloniesLabel(nation));
+        Messages.line(source, "command.colony_nations.info.treasury", nation.treasury());
         return 1;
     }
 
@@ -210,16 +209,17 @@ public final class NationCommands {
         CommandSourceStack source = ctx.getSource();
         List<Nation> nations = new ArrayList<>(saved(ctx).registry().all());
         if (nations.isEmpty()) {
-            return fail(source, "command.colony_nations.list.empty");
+            return Messages.error(source, "command.colony_nations.list.empty");
         }
         nations.sort(Comparator.comparing(nation -> nation.name().toLowerCase(Locale.ROOT)));
-        source.sendSuccess(() -> Component.translatable("command.colony_nations.list.header", nations.size()), false);
+        Messages.header(source, "command.colony_nations.list.header", nations.size());
         for (Nation nation : nations) {
-            source.sendSuccess(() -> Component.translatable(
+            Messages.line(
+                    source,
                     "command.colony_nations.list.entry",
                     nation.name(),
                     ownerLabel(source, nation.owner()),
-                    nation.cities().size()), false);
+                    nation.cities().size());
         }
         return 1;
     }
@@ -231,22 +231,22 @@ public final class NationCommands {
         if (nationName != null) {
             Nation nation = registry.byName(nationName).orElse(null);
             if (nation == null) {
-                fail(source, "command.colony_nations.unknown", nationName);
+                Messages.error(source, "command.colony_nations.unknown", nationName);
             }
             return nation;
         }
         ServerPlayer player = player(source);
         if (player == null) {
-            fail(source, "command.colony_nations.players_only");
+            Messages.error(source, "command.colony_nations.players_only");
             return null;
         }
         Nation nation = registry.byOwner(player.getUUID()).orElse(null);
         if (nation == null) {
-            fail(source, "command.colony_nations.info.none");
+            Messages.error(source, "command.colony_nations.info.none");
             return null;
         }
         if (!nation.owner().equals(player.getUUID())) {
-            fail(source, "command.colony_nations.not_owner");
+            Messages.error(source, "command.colony_nations.not_owner");
             return null;
         }
         return nation;
@@ -279,7 +279,7 @@ public final class NationCommands {
             case UNKNOWN_NATION -> "command.colony_nations.unknown";
             case COLONY_TAKEN, UNKNOWN_COLONY -> "command.colony_nations.unknown";
         };
-        return fail(source, key);
+        return Messages.error(source, key);
     }
 
     private static String formatColor(int rgb) {
@@ -313,15 +313,5 @@ public final class NationCommands {
 
     private static String cityLabel(CityRef city) {
         return city.dimension() + "#" + city.colonyId();
-    }
-
-    private static int ok(CommandSourceStack source, String key, Object... args) {
-        source.sendSuccess(() -> Component.translatable(key, args), true);
-        return 1;
-    }
-
-    private static int fail(CommandSourceStack source, String key, Object... args) {
-        source.sendFailure(Component.translatable(key, args));
-        return 0;
     }
 }

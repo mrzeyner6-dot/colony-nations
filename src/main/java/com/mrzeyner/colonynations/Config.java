@@ -3,7 +3,7 @@ package com.mrzeyner.colonynations;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
- * Empty config skeleton. Balance numbers belong here as {@link ModConfigSpec} values.
+ * Balance numbers and server toggles. Values are {@link ModConfigSpec} entries, not literals in game logic.
  */
 public final class Config {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
@@ -11,6 +11,11 @@ public final class Config {
     public static final ModConfigSpec.IntValue DISBAND_CONFIRM_SECONDS = BUILDER
             .comment("Seconds the player has to run /nation disband again before the nation is removed.")
             .defineInRange("disbandConfirmSeconds", 30, 1, 3600);
+
+    public static final ModConfigSpec.BooleanValue CHAT_SOUNDS = BUILDER
+            .comment("Play a quiet sound for the player who receives a nation chat message.",
+                    "This is a server (common) option: the server plays the sound, so a client-only toggle would not apply.")
+            .define("chatSounds", true);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
 

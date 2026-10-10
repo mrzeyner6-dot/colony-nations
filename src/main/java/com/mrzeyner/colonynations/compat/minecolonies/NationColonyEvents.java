@@ -3,6 +3,7 @@ package com.mrzeyner.colonynations.compat.minecolonies;
 import java.util.UUID;
 
 import com.mrzeyner.colonynations.ColonyNations;
+import com.mrzeyner.colonynations.command.Messages;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
@@ -13,7 +14,6 @@ import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.eventbus.events.colony.ColonyCreatedModEvent;
 import com.minecolonies.api.eventbus.events.colony.ColonyDeletedModEvent;
 
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -61,11 +61,12 @@ public final class NationColonyEvents {
         }
         ServerPlayer player = server.getPlayerList().getPlayer(owner);
         if (player != null) {
-            player.sendSystemMessage(Component.translatable(
+            Messages.event(
+                    player,
                     "command.colony_nations.city.auto",
                     colony.getName(),
                     colony.getID(),
-                    nation.name()));
+                    nation.name());
         }
     }
 

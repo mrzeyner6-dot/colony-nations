@@ -1,13 +1,13 @@
 package com.mrzeyner.colonynations.data;
 
 import com.mrzeyner.colonynations.ColonyNations;
+import com.mrzeyner.colonynations.command.Messages;
 import com.mrzeyner.colonynations.nation.NationCodec;
 import com.mrzeyner.colonynations.nation.NationRegistry;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.saveddata.SavedData;
 
 /**
@@ -56,7 +56,7 @@ public final class NationSavedData extends SavedData {
         if (!unreadable()) {
             return false;
         }
-        source.sendFailure(Component.translatable("command.colony_nations.save.unreadable", unreadVersion));
+        Messages.error(source, "command.colony_nations.save.unreadable", unreadVersion);
         return true;
     }
 
