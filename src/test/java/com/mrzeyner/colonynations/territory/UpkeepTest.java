@@ -5,11 +5,46 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.OptionalLong;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 class UpkeepTest {
+    @Test
+    void dawnChargesOnceAndStoresThatDay() {
+        Upkeep.Due due = Upkeep.due(OptionalLong.of(4L), 5L * Upkeep.TICKS_PER_DAY);
+
+        assertTrue(due.charge());
+        assertEquals(5L, due.recordedDay());
+    }
+
+    @Test
+    void frozenDayDoesNotChargeAgain() {
+        long dayTime = 3L * Upkeep.TICKS_PER_DAY + 1000L;
+
+        Upkeep.Due due = Upkeep.due(OptionalLong.of(3L), dayTime);
+
+        assertFalse(due.charge());
+        assertEquals(3L, due.recordedDay());
+    }
+
+    @Test
+    void skippedDaysChargeOnce() {
+        Upkeep.Due due = Upkeep.due(OptionalLong.of(1L), 5L * Upkeep.TICKS_PER_DAY);
+
+        assertTrue(due.charge());
+        assertEquals(5L, due.recordedDay());
+    }
+
+    @Test
+    void firstLaunchRecordsTheDayWithoutCharging() {
+        Upkeep.Due due = Upkeep.due(OptionalLong.empty(), 2L * Upkeep.TICKS_PER_DAY + 50L);
+
+        assertFalse(due.charge());
+        assertEquals(2L, due.recordedDay());
+    }
+
     @Test
     void fullTreasuryPaysTheBill() {
         Upkeep.Charge charge = Upkeep.charge(100L, 6L);

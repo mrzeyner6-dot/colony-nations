@@ -28,20 +28,28 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
- * Charges state-land upkeep at overworld dawn. Offline owners receive the line when they next log in.
+ * Charges state-land upkeep once per Minecraft day. Offline owners receive the line when they next log in.
  */
 @EventBusSubscriber(modid = ColonyNations.MOD_ID)
 public final class NationUpkeep {
-    private static final long DAWN = 24000L;
+    private static final long TICKS_PER_SECOND = 20L;
 
     private NationUpkeep() {
     }
 
     @SubscribeEvent
-    public static void onDawn(ServerTickEvent.Post event) {
-        long dayTime = event.getServer().overworld().getDayTime();
-        if (dayTime > 0L && dayTime % DAWN == 0L) {
-            run(event.getServer());
+    public static void onTick(ServerTickEvent.Post event) {
+        MinecraftServer server = event.getServer();
+        if (server.overworld().getGameTime() % TICKS_PER_SECOND != 0L) {
+            return;
+        }
+        NationSavedData data = NationSavedData.get(server);
+        Upkeep.Due due = Upkeep.due(data.lastUpkeepDay(), server.overworld().getDayTime());
+        if (data.lastUpkeepDay().isEmpty() || due.charge()) {
+            data.setLastUpkeepDay(due.recordedDay());
+        }
+        if (due.charge()) {
+            run(server);
         }
     }
 

@@ -2,6 +2,7 @@ package com.mrzeyner.colonynations.data;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalLong;
 import java.util.UUID;
 
 import com.mrzeyner.colonynations.ColonyNations;
@@ -27,12 +28,14 @@ public final class NationSavedData extends SavedData {
     public static final String DATA_ID = "colony_nations";
     private static final String PAYLOAD = "Payload";
     private static final String NOTICES = "Notices";
+    private static final String LAST_UPKEEP_DAY = "LastUpkeepDay";
 
     private final NationRegistry registry;
     private final TerritoryMap territory;
     private final List<PendingNotice> notices = new ArrayList<>();
     private final byte[] preservedPayload;
     private final int unreadVersion;
+    private Long lastUpkeepDay;
 
     public NationSavedData() {
         this(new NationRegistry(), new TerritoryMap(), null, 0);
@@ -77,6 +80,15 @@ public final class NationSavedData extends SavedData {
         return mine;
     }
 
+    public OptionalLong lastUpkeepDay() {
+        return lastUpkeepDay == null ? OptionalLong.empty() : OptionalLong.of(lastUpkeepDay);
+    }
+
+    public void setLastUpkeepDay(long day) {
+        lastUpkeepDay = day;
+        setDirty();
+    }
+
     public boolean unreadable() {
         return preservedPayload != null;
     }
@@ -114,6 +126,9 @@ public final class NationSavedData extends SavedData {
             data = new NationSavedData(loaded.registry(), loaded.territory(), null, loaded.version());
         }
         data.notices.addAll(readNotices(tag));
+        if (tag.contains(LAST_UPKEEP_DAY)) {
+            data.lastUpkeepDay = tag.getLong(LAST_UPKEEP_DAY);
+        }
         return data;
     }
 
@@ -122,6 +137,9 @@ public final class NationSavedData extends SavedData {
         byte[] payload = preservedPayload != null ? preservedPayload : NationCodec.write(registry, territory);
         tag.putByteArray(PAYLOAD, payload.clone());
         tag.put(NOTICES, writeNotices());
+        if (lastUpkeepDay != null) {
+            tag.putLong(LAST_UPKEEP_DAY, lastUpkeepDay);
+        }
         return tag;
     }
 

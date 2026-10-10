@@ -3,6 +3,7 @@ package com.mrzeyner.colonynations.territory;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.OptionalLong;
 import java.util.Set;
 
 /**
@@ -19,7 +20,28 @@ public final class Upkeep {
     public record Charge(long paid, boolean shortfall) {
     }
 
+    /**
+     * Whether this check should charge, and the day number to store afterwards.
+     * A missing last day is the first launch: record the day and do not charge.
+     * A jump of several days charges once and stores the current day, not each skipped day.
+     */
+    public record Due(boolean charge, long recordedDay) {
+    }
+
+    public static final long TICKS_PER_DAY = 24000L;
+
     private Upkeep() {
+    }
+
+    public static Due due(OptionalLong lastDay, long dayTime) {
+        long day = dayTime / TICKS_PER_DAY;
+        if (lastDay.isEmpty()) {
+            return new Due(false, day);
+        }
+        if (day > lastDay.getAsLong()) {
+            return new Due(true, day);
+        }
+        return new Due(false, lastDay.getAsLong());
     }
 
     public static Charge charge(long treasury, long cost) {
