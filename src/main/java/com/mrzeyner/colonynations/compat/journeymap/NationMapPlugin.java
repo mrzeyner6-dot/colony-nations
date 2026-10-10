@@ -1,6 +1,5 @@
 package com.mrzeyner.colonynations.compat.journeymap;
 
-import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,7 +9,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.mrzeyner.colonynations.ColonyNations;
-import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.client.TerritoryClientCache;
 import com.mrzeyner.colonynations.territory.ChunkPolygons;
 import com.mrzeyner.colonynations.territory.ChunkRef;
@@ -18,21 +16,12 @@ import com.mrzeyner.colonynations.territory.ChunkRef;
 import journeymap.api.v2.client.IClientAPI;
 import journeymap.api.v2.client.IClientPlugin;
 import journeymap.api.v2.client.display.DisplayType;
-import journeymap.api.v2.client.display.IOverlayListener;
-import journeymap.api.v2.client.display.MarkerOverlay;
-import journeymap.api.v2.client.display.Overlay;
 import journeymap.api.v2.client.display.PolygonOverlay;
-import journeymap.api.v2.client.model.MapImage;
 import journeymap.api.v2.client.model.MapPolygon;
 import journeymap.api.v2.client.model.ShapeProperties;
-import journeymap.api.v2.client.model.TextProperties;
-import journeymap.api.v2.client.util.UIState;
 import journeymap.api.v2.common.JourneyMapPlugin;
 
-import com.mojang.blaze3d.platform.NativeImage;
-
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -45,8 +34,9 @@ import net.neoforged.neoforge.common.NeoForge;
 /**
  * Political map. JourneyMap classloads this only when that mod is installed, so a dedicated server
  * never touches these types. Colony Nations does not reference this class itself.
- * Polygons stay merged per nation. The hover title is rewritten from the chunk under the cursor,
- * because {@link IOverlayListener#onMouseMove} receives that block and the map reads the title each frame.
+ * Same drawing path as the first map build: static polygon titles, no markers, no hover listener.
+ * City land is one polygon set per colony so the title can name that colony. State land, including
+ * the city core, stays merged per nation.
  */
 @JourneyMapPlugin(apiVersion = "2.0.0")
 public final class NationMapPlugin implements IClientPlugin {
@@ -56,14 +46,10 @@ public final class NationMapPlugin implements IClientPlugin {
     private static final float STATE_STROKE = 2F;
     private static final float CITY_STROKE = 4F;
 
-    private static final ResourceLocation BLANK_ICON_ID =
-            ResourceLocation.fromNamespaceAndPath(ColonyNations.MOD_ID, "map_city_label");
-
-    private static MapImage blankIcon;
     private IClientAPI api;
     private boolean listening;
-    private boolean labelsEnabled = true;
-    private final Map<UUID, List<Overlay>> shown = new HashMap<>();
+    private boolean failureLogged;
+    private final Map<UUID, List<PolygonOverlay>> shown = new HashMap<>();
 
     public NationMapPlugin() {
     }
@@ -75,51 +61,47 @@ public final class NationMapPlugin implements IClientPlugin {
 
     @Override
     public void initialize(IClientAPI jmClientApi) {
-        this.api = jmClientApi;
-        if (!listening) {
-            NeoForge.EVENT_BUS.addListener(this::onClientTick);
-            listening = true;
+        try {
+            this.api = jmClientApi;
+            if (!listening) {
+                NeoForge.EVENT_BUS.addListener(this::onClientTick);
+                listening = true;
+            }
+        } catch (Exception exception) {
+            logOnce(exception);
         }
     }
 
     private void onClientTick(ClientTickEvent.Post event) {
-        if (api == null || Minecraft.getInstance().level == null) {
-            return;
-        }
-        String here = Minecraft.getInstance().level.dimension().location().toString();
-        if (!here.equals(TerritoryClientCache.dimension())) {
-            return;
-        }
-        boolean showLabels = Config.MAP_CITY_LABELS.get();
-        boolean labelsChanged = showLabels != labelsEnabled;
-        labelsEnabled = showLabels;
-        if (TerritoryClientCache.consumeReset()) {
-            TerritoryClientCache.consumeDirty();
-            api.removeAll(ColonyNations.MOD_ID, DisplayType.Polygon);
-            api.removeAll(ColonyNations.MOD_ID, DisplayType.Marker);
-            shown.clear();
-            for (UUID nation : TerritoryClientCache.nations().keySet()) {
+        try {
+            if (api == null || Minecraft.getInstance().level == null) {
+                return;
+            }
+            String here = Minecraft.getInstance().level.dimension().location().toString();
+            if (!here.equals(TerritoryClientCache.dimension())) {
+                return;
+            }
+            if (TerritoryClientCache.consumeReset()) {
+                TerritoryClientCache.consumeDirty();
+                api.removeAll(ColonyNations.MOD_ID, DisplayType.Polygon);
+                shown.clear();
+                for (UUID nation : TerritoryClientCache.nations().keySet()) {
+                    draw(nation);
+                }
+                return;
+            }
+            for (UUID nation : TerritoryClientCache.consumeDirty()) {
                 draw(nation);
             }
-            return;
-        }
-        if (labelsChanged) {
-            Set<UUID> nations = new HashSet<>(TerritoryClientCache.consumeDirty());
-            nations.addAll(TerritoryClientCache.nations().keySet());
-            for (UUID nation : nations) {
-                draw(nation);
-            }
-            return;
-        }
-        for (UUID nation : TerritoryClientCache.consumeDirty()) {
-            draw(nation);
+        } catch (Exception exception) {
+            logOnce(exception);
         }
     }
 
     private void draw(UUID nationId) {
-        List<Overlay> previous = shown.remove(nationId);
+        List<PolygonOverlay> previous = shown.remove(nationId);
         if (previous != null) {
-            for (Overlay overlay : previous) {
+            for (PolygonOverlay overlay : previous) {
                 api.remove(overlay);
             }
         }
@@ -128,44 +110,37 @@ public final class NationMapPlugin implements IClientPlugin {
             return;
         }
         String dimension = TerritoryClientCache.dimension();
+        String nationName = nation.name() == null ? "" : nation.name();
         Set<ChunkRef> state = new HashSet<>();
-        Set<ChunkRef> city = new HashSet<>();
-        Map<Integer, List<ChunkRef>> claims = new HashMap<>();
-        Map<Integer, String> claimNames = new HashMap<>();
+        Map<Integer, Set<ChunkRef>> cities = new HashMap<>();
+        Map<Integer, String> cityNames = new HashMap<>();
         for (Map.Entry<ChunkRef, TerritoryClientCache.Plot> entry : TerritoryClientCache.plots().entrySet()) {
-            if (!nationId.equals(entry.getValue().nation()) || !dimension.equals(entry.getKey().dimension())) {
+            TerritoryClientCache.Plot plot = entry.getValue();
+            if (plot == null || !nationId.equals(plot.nation()) || !dimension.equals(entry.getKey().dimension())) {
                 continue;
             }
-            TerritoryClientCache.Plot plot = entry.getValue();
             if (plot.land() == TerritoryClientCache.Land.CITY) {
-                city.add(entry.getKey());
-                claims.computeIfAbsent(plot.colonyId(), key -> new ArrayList<>()).add(entry.getKey());
-                if (!plot.placeName().isEmpty()) {
-                    claimNames.put(plot.colonyId(), plot.placeName());
+                cities.computeIfAbsent(plot.colonyId(), id -> new HashSet<>()).add(entry.getKey());
+                String placeName = plot.placeName() == null ? "" : plot.placeName();
+                if (!placeName.isEmpty()) {
+                    cityNames.put(plot.colonyId(), placeName);
                 }
             } else {
                 state.add(entry.getKey());
             }
         }
         ResourceKey<Level> level = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(dimension));
-        List<Overlay> overlays = new ArrayList<>();
-        overlays.addAll(polygons(level, nation, state, false));
-        overlays.addAll(polygons(level, nation, city, true));
-        if (!labelsEnabled) {
-            if (!overlays.isEmpty()) {
-                shown.put(nationId, overlays);
-            }
-            return;
-        }
-        for (Map.Entry<Integer, List<ChunkRef>> claim : claims.entrySet()) {
-            String placeName = claimNames.getOrDefault(claim.getKey(), "");
-            if (placeName.isEmpty() || claim.getValue().isEmpty()) {
-                continue;
-            }
-            Overlay marker = cityMarker(level, nation, placeName, claim.getValue());
-            if (marker != null) {
-                overlays.add(marker);
-            }
+        List<PolygonOverlay> overlays = new ArrayList<>();
+        overlays.addAll(polygons(level, nationName, nation.color(), state, false, I18n.get("map.colony_nations.tooltip.state", nationName)));
+        for (Map.Entry<Integer, Set<ChunkRef>> city : cities.entrySet()) {
+            String placeName = cityNames.getOrDefault(city.getKey(), "");
+            overlays.addAll(polygons(
+                    level,
+                    nationName,
+                    nation.color(),
+                    city.getValue(),
+                    true,
+                    I18n.get("map.colony_nations.tooltip.city", placeName, nationName)));
         }
         if (!overlays.isEmpty()) {
             shown.put(nationId, overlays);
@@ -174,104 +149,39 @@ public final class NationMapPlugin implements IClientPlugin {
 
     private List<PolygonOverlay> polygons(
             ResourceKey<Level> level,
-            TerritoryClientCache.NationView nation,
+            String nationName,
+            int color,
             Set<ChunkRef> chunks,
-            boolean city) {
+            boolean city,
+            String title) {
         List<PolygonOverlay> overlays = new ArrayList<>();
         for (ChunkPolygons.Polygon polygon : ChunkPolygons.of(chunks)) {
-            ShapeProperties shape = new ShapeProperties()
-                    .setFillColor(nation.color())
-                    .setStrokeColor(nation.color())
-                    .setFillOpacity(city ? CITY_FILL : STATE_FILL)
-                    .setStrokeOpacity(0.9F)
-                    .setStrokeWidth(city ? CITY_STROKE : STATE_STROKE);
-            PolygonOverlay overlay = new PolygonOverlay(ColonyNations.MOD_ID, level, shape, ring(polygon.outer()), holes(polygon.holes()));
-            overlay.setTitle(titleAt(null, nation));
-            overlay.setOverlayGroupName(nation.name());
-            overlay.setDisplayOrder(city ? 20 : 10);
-            overlay.setOverlayListener(new IOverlayListener() {
-                @Override
-                public void onMouseMove(UIState state, Point2D.Double mouse, BlockPos pos) {
-                    String title = titleAt(pos, nation);
-                    if (!title.equals(overlay.getTitle())) {
-                        overlay.setTitle(title);
-                    }
-                }
-            });
             try {
+                ShapeProperties shape = new ShapeProperties()
+                        .setFillColor(color)
+                        .setStrokeColor(color)
+                        .setFillOpacity(city ? CITY_FILL : STATE_FILL)
+                        .setStrokeOpacity(0.9F)
+                        .setStrokeWidth(city ? CITY_STROKE : STATE_STROKE);
+                PolygonOverlay overlay = new PolygonOverlay(ColonyNations.MOD_ID, level, shape, ring(polygon.outer()), holes(polygon.holes()));
+                overlay.setTitle(title);
+                overlay.setOverlayGroupName(nationName);
+                overlay.setDisplayOrder(city ? 20 : 10);
                 api.show(overlay);
                 overlays.add(overlay);
             } catch (Exception exception) {
-                ColonyNations.LOGGER.warn("Could not show territory for {}", nation.name());
+                logOnce(exception);
             }
         }
         return overlays;
     }
 
-    private Overlay cityMarker(ResourceKey<Level> level, TerritoryClientCache.NationView nation, String placeName, List<ChunkRef> claim) {
-        long sumX = 0L;
-        long sumZ = 0L;
-        for (ChunkRef chunk : claim) {
-            sumX += chunk.x();
-            sumZ += chunk.z();
+    private void logOnce(Exception exception) {
+        if (failureLogged) {
+            return;
         }
-        int chunkX = (int) Math.round(sumX / (double) claim.size());
-        int chunkZ = (int) Math.round(sumZ / (double) claim.size());
-        BlockPos center = new BlockPos(chunkX * BLOCKS_PER_CHUNK + BLOCKS_PER_CHUNK / 2, 0, chunkZ * BLOCKS_PER_CHUNK + BLOCKS_PER_CHUNK / 2);
-        MarkerOverlay marker = new MarkerOverlay(ColonyNations.MOD_ID, center, blankIcon());
-        marker.setDimension(level);
-        marker.setLabel(placeName);
-        marker.setTitle(I18n.get("map.colony_nations.tooltip.city", placeName, nation.name()));
-        marker.setOverlayGroupName(nation.name());
-        marker.setDisplayOrder(30);
-        marker.setTextProperties(new TextProperties()
-                .setColor(0xFFFFFF)
-                .setOpacity(1F)
-                .setBackgroundColor(0x000000)
-                .setBackgroundOpacity(0.6F)
-                .setFontShadow(true));
-        try {
-            api.show(marker);
-            return marker;
-        } catch (Exception exception) {
-            ColonyNations.LOGGER.warn("Could not label {} for {}", placeName, nation.name());
-            return null;
-        }
-    }
-
-    private static String titleAt(BlockPos pos, TerritoryClientCache.NationView nation) {
-        if (pos == null) {
-            return I18n.get("map.colony_nations.tooltip.state", nation.name());
-        }
-        ChunkRef chunk = new ChunkRef(TerritoryClientCache.dimension(), pos.getX() >> 4, pos.getZ() >> 4);
-        TerritoryClientCache.Plot plot = TerritoryClientCache.plot(chunk);
-        if (plot == null || !nation.id().equals(plot.nation())) {
-            return I18n.get("map.colony_nations.tooltip.state", nation.name());
-        }
-        return switch (plot.land()) {
-            case CITY -> I18n.get("map.colony_nations.tooltip.city", plot.placeName(), nation.name());
-            case CORE -> plot.placeName().isEmpty()
-                    ? I18n.get("map.colony_nations.tooltip.state", nation.name())
-                    : I18n.get("map.colony_nations.tooltip.core", nation.name(), plot.placeName());
-            case STATE -> I18n.get("map.colony_nations.tooltip.state", nation.name());
-        };
-    }
-
-    /**
-     * One transparent pixel, opacity 1. Opacity 0 is written into the quad color and must not be used.
-     * The image is registered once; markers only reference it, so a redraw does not allocate another texture.
-     */
-    private static MapImage blankIcon() {
-        if (blankIcon == null) {
-            NativeImage image = new NativeImage(1, 1, true);
-            image.setPixelRGBA(0, 0, 0);
-            Minecraft.getInstance().getTextureManager().register(BLANK_ICON_ID, new DynamicTexture(image));
-            blankIcon = new MapImage(BLANK_ICON_ID, 1, 1);
-            blankIcon.setOpacity(1F);
-            blankIcon.setDisplayWidth(1);
-            blankIcon.setDisplayHeight(1);
-        }
-        return blankIcon;
+        failureLogged = true;
+        ColonyNations.LOGGER.warn("Colony Nations map overlay failed once and will stay quiet", exception);
     }
 
     private static MapPolygon ring(List<ChunkPolygons.Point> points) {
