@@ -1,5 +1,6 @@
 package com.mrzeyner.colonynations.data;
 
+import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.nation.NationCodec;
 import com.mrzeyner.colonynations.nation.NationRegistry;
 
@@ -37,7 +38,11 @@ public final class NationSavedData extends SavedData {
     }
 
     public static NationSavedData load(CompoundTag tag, HolderLookup.Provider provider) {
-        return new NationSavedData(NationCodec.read(tag.getByteArray(PAYLOAD)));
+        NationCodec.Loaded loaded = NationCodec.load(tag.getByteArray(PAYLOAD));
+        if (loaded.warning() != null) {
+            ColonyNations.LOGGER.error(loaded.warning());
+        }
+        return new NationSavedData(loaded.registry());
     }
 
     @Override

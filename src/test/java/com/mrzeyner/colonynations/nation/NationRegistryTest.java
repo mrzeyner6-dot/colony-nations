@@ -4,7 +4,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import org.junit.jupiter.api.Test;
 
@@ -177,6 +186,52 @@ class NationRegistryTest {
         assertEquals(rome.owner(), loaded.byOwner(rome.owner()).orElseThrow().owner());
         assertEquals(100L, loaded.byId(rome.id()).orElseThrow().createdGameTime());
         assertEquals(2, loaded.all().size());
+    }
+
+    @Test
+    void unknownSaveVersionKeepsAnEmptyRegistryAndLogs() throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (DataOutputStream out = new DataOutputStream(bytes)) {
+            out.writeInt(1);
+            out.writeInt(0);
+        }
+        Logger logger = NationCodec.LOGGER;
+        List<String> messages = new ArrayList<>();
+        Handler handler = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                messages.add(record.getMessage());
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        handler.setLevel(Level.SEVERE);
+        Level previous = logger.getLevel();
+        boolean useParent = logger.getUseParentHandlers();
+        logger.setLevel(Level.SEVERE);
+        logger.setUseParentHandlers(false);
+        logger.addHandler(handler);
+        try {
+            NationCodec.Loaded loaded = NationCodec.load(bytes.toByteArray());
+            assertEquals(null, loaded.registry().byName("Rome").orElse(null));
+            assertTrue(loaded.registry().all().isEmpty());
+            assertTrue(loaded.warning().contains("version 1"));
+            assertTrue(loaded.warning().contains("expected " + NationCodec.VERSION));
+
+            NationRegistry read = NationCodec.read(bytes.toByteArray());
+            assertTrue(read.all().isEmpty());
+            assertTrue(messages.stream().anyMatch(message -> message.contains("version 1")));
+        } finally {
+            logger.removeHandler(handler);
+            logger.setLevel(previous);
+            logger.setUseParentHandlers(useParent);
+        }
     }
 
     private static CityRef city(int colonyId) {

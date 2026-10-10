@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 /**
  * Versioned binary form of a {@link NationRegistry}.
@@ -17,8 +18,16 @@ import java.util.UUID;
 public final class NationCodec {
     public static final int VERSION = 2;
 
+    static final Logger LOGGER = Logger.getLogger(NationCodec.class.getName());
+
     private static final Comparator<CityRef> CITY_ORDER =
             Comparator.comparing(CityRef::dimension).thenComparingInt(CityRef::colonyId);
+
+    /**
+     * @param warning set when the payload version is not {@link #VERSION}; the registry is then empty
+     */
+    public record Loaded(NationRegistry registry, String warning) {
+    }
 
     private NationCodec() {
     }
@@ -40,10 +49,21 @@ public final class NationCodec {
     }
 
     public static NationRegistry read(byte[] payload) {
+        Loaded loaded = load(payload);
+        if (loaded.warning() != null) {
+            LOGGER.severe(loaded.warning());
+        }
+        return loaded.registry();
+    }
+
+    public static Loaded load(byte[] payload) {
         try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(payload))) {
             int version = in.readInt();
             if (version != VERSION) {
-                throw new IllegalStateException("unsupported nation payload version " + version);
+                return new Loaded(
+                        new NationRegistry(),
+                        "Unknown nation save version " + version
+                                + " (expected " + VERSION + "). Starting with an empty nation registry.");
             }
             int count = in.readInt();
             List<Nation> nations = new ArrayList<>(count);
@@ -52,7 +72,7 @@ public final class NationCodec {
             }
             NationRegistry registry = new NationRegistry();
             registry.restore(nations);
-            return registry;
+            return new Loaded(registry, null);
         } catch (IOException exception) {
             throw new IllegalStateException("failed to read nations", exception);
         }
