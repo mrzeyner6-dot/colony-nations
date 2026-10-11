@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "create:brass_casing"
+    },
+    {
+      "item": "minecraft:chest"
+    },
+    {
+      "tag": "numismatics:coins"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "colony_nations:trade_terminal"
+  }
+}

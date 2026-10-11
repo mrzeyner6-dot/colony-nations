@@ -187,5 +187,16 @@
   "gui.colony_nations.offer.decline": "Відхилити",
   "gui.colony_nations.offer.deadline": "Відповісти до дня %s",
   "gui.colony_nations.page.prev": "Назад",
-  "gui.colony_nations.page.next": "Далі"
+  "gui.colony_nations.page.next": "Далі",
+  "block.colony_nations.trade_terminal": "Торговий термінал",
+  "command.colony_nations.terminal.no_nation": "У тебе немає держави.",
+  "command.colony_nations.terminal.not_yours": "Торговий термінал можна ставити лише на землі своєї держави.",
+  "command.colony_nations.terminal.break": "Зламати цей термінал може лише власник держави або оператор.",
+  "gui.colony_nations.terminal.stock": "Склад",
+  "gui.colony_nations.terminal.output": "Видача",
+  "gui.colony_nations.terminal.coins": "Приймач монет",
+  "gui.colony_nations.terminal.goods": "Товар: не задано",
+  "gui.colony_nations.terminal.price": "Ціна: не задано",
+  "gui.colony_nations.terminal.terms": "Умови: —",
+  "gui.colony_nations.terminal.credit": "Кредит твоєї держави: %s"
 }

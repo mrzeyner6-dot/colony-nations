@@ -2,6 +2,7 @@ package com.mrzeyner.colonynations;
 
 import com.mrzeyner.colonynations.client.NationKeys;
 import com.mrzeyner.colonynations.client.NationMenuClient;
+import com.mrzeyner.colonynations.client.TradeTerminalScreen;
 import com.mrzeyner.colonynations.network.NationOverviewPayload;
 
 import net.neoforged.api.distmarker.Dist;
@@ -18,6 +19,7 @@ public class ColonyNationsClient {
     public ColonyNationsClient(IEventBus modEventBus, ModContainer container) {
         modEventBus.addListener(NationKeys::register);
         modEventBus.addListener(ColonyNationsClient::registerMenu);
+        modEventBus.addListener(TradeTerminalScreen::register);
         ColonyNations.LOGGER.info("Colony Nations client setup");
     }
 

@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "colony_nations:block/trade_terminal"
+    }
+  }
+}

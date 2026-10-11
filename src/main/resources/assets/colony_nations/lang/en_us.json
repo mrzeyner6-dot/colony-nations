@@ -187,5 +187,16 @@
   "gui.colony_nations.offer.decline": "Decline",
   "gui.colony_nations.offer.deadline": "Answer by day %s",
   "gui.colony_nations.page.prev": "Previous",
-  "gui.colony_nations.page.next": "Next"
+  "gui.colony_nations.page.next": "Next",
+  "block.colony_nations.trade_terminal": "Trade Terminal",
+  "command.colony_nations.terminal.no_nation": "You have no nation.",
+  "command.colony_nations.terminal.not_yours": "You can place a trade terminal only on your nation's land.",
+  "command.colony_nations.terminal.break": "Only the nation's owner or an operator can break this terminal.",
+  "gui.colony_nations.terminal.stock": "Stock",
+  "gui.colony_nations.terminal.output": "Output",
+  "gui.colony_nations.terminal.coins": "Coin receiver",
+  "gui.colony_nations.terminal.goods": "Goods: not set",
+  "gui.colony_nations.terminal.price": "Price: not set",
+  "gui.colony_nations.terminal.terms": "Terms: —",
+  "gui.colony_nations.terminal.credit": "Your nation's credit: %s"
 }

@@ -6,6 +6,7 @@ import com.mojang.logging.LogUtils;
 
 import com.mrzeyner.colonynations.compat.minecolonies.NationColonyEvents;
 import com.mrzeyner.colonynations.network.TerritoryPayloads;
+import com.mrzeyner.colonynations.trade.TradeBlocks;
 
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -22,6 +23,7 @@ public class ColonyNations {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public ColonyNations(IEventBus modEventBus, ModContainer modContainer) {
+        TradeBlocks.register(modEventBus);
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(TerritoryPayloads::register);
         NeoForge.EVENT_BUS.register(this);

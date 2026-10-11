@@ -9,6 +9,7 @@ import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.command.Messages;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.Nation;
+import com.mrzeyner.colonynations.trade.TradeTerminalBlock;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -44,6 +45,9 @@ public final class StateLandGuard {
 
     @SubscribeEvent
     public static void onBreak(BlockEvent.BreakEvent event) {
+        if (event.getState().getBlock() instanceof TradeTerminalBlock) {
+            return;
+        }
         if (!(event.getPlayer() instanceof ServerPlayer player)) {
             return;
         }
@@ -55,6 +59,9 @@ public final class StateLandGuard {
 
     @SubscribeEvent
     public static void onPlace(BlockEvent.EntityPlaceEvent event) {
+        if (event.getPlacedBlock().getBlock() instanceof TradeTerminalBlock) {
+            return;
+        }
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
@@ -74,6 +81,9 @@ public final class StateLandGuard {
         }
         ItemStack stack = player.getItemInHand(event.getHand());
         BlockState state = event.getLevel().getBlockState(event.getPos());
+        if (state.getBlock() instanceof TradeTerminalBlock) {
+            return;
+        }
         BlockEntity entity = event.getLevel().getBlockEntity(event.getPos());
         boolean container = state.getBlock() instanceof MenuProvider || entity instanceof MenuProvider;
         boolean bucket = stack.getItem() instanceof BucketItem;
