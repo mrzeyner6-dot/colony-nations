@@ -236,6 +236,26 @@ class NationRegistryTest {
         }
     }
 
+    @Test
+    void version2MigratesToEmptyTerritory() {
+        NationRegistry registry = new NationRegistry();
+        Nation rome = registry.create("Rome", UUID.randomUUID(), 0xABCDEF, 9L);
+        registry.addColony(rome.id(), city(3));
+        byte[] version2 = NationCodec.writeVersion2(registry);
+
+        NationCodec.Loaded loaded = NationCodec.load(version2);
+
+        assertEquals(2, loaded.version());
+        assertEquals(null, loaded.warning());
+        assertEquals(registry.byId(rome.id()).orElseThrow(), loaded.registry().byId(rome.id()).orElseThrow());
+        assertTrue(loaded.territory().allChunks().isEmpty());
+
+        NationCodec.Loaded again = NationCodec.load(NationCodec.write(loaded));
+        assertEquals(NationCodec.VERSION, again.version());
+        assertEquals(registry.byId(rome.id()).orElseThrow(), again.registry().byId(rome.id()).orElseThrow());
+        assertTrue(again.territory().allChunks().isEmpty());
+    }
+
     private static CityRef city(int colonyId) {
         return new CityRef("minecraft:overworld", colonyId);
     }

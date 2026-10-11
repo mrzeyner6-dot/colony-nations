@@ -133,6 +133,7 @@ public final class NationCommands {
                     nation.name(),
                     Config.DISBAND_CONFIRM_SECONDS.get());
         }
+        data.territory().releaseAll(nation.id());
         data.registry().delete(nation.id());
         data.setDirty();
         return Messages.success(source, "command.colony_nations.disband.success", nation.name());
