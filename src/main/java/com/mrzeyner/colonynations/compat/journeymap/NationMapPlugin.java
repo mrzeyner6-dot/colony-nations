@@ -134,6 +134,11 @@ public final class NationMapPlugin implements IClientPlugin {
                 state.add(entry.getKey());
             }
         }
+        Set<ChunkRef> claims = new HashSet<>();
+        for (Set<ChunkRef> claim : cities.values()) {
+            claims.addAll(claim);
+            state.removeAll(claim);
+        }
         ResourceKey<Level> level = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(dimension));
         List<PolygonOverlay> overlays = new ArrayList<>();
         overlays.addAll(polygons(
@@ -141,7 +146,7 @@ public final class NationMapPlugin implements IClientPlugin {
                 nationName,
                 nation.color(),
                 nation.color(),
-                state,
+                ChunkPolygons.excluding(state, claims),
                 false,
                 I18n.get("map.colony_nations.tooltip.state", nationName)));
         for (Map.Entry<Integer, Set<ChunkRef>> city : cities.entrySet()) {
@@ -162,7 +167,7 @@ public final class NationMapPlugin implements IClientPlugin {
                     nationName,
                     nation.color(),
                     stroke,
-                    city.getValue(),
+                    ChunkPolygons.of(city.getValue()),
                     true,
                     I18n.get(titleKey, placeName, nationName)));
         }
@@ -176,11 +181,11 @@ public final class NationMapPlugin implements IClientPlugin {
             String nationName,
             int fill,
             int stroke,
-            Set<ChunkRef> chunks,
+            List<ChunkPolygons.Polygon> shapes,
             boolean city,
             String title) {
         List<PolygonOverlay> overlays = new ArrayList<>();
-        for (ChunkPolygons.Polygon polygon : ChunkPolygons.of(chunks)) {
+        for (ChunkPolygons.Polygon polygon : shapes) {
             try {
                 ShapeProperties shape = new ShapeProperties()
                         .setFillColor(fill)

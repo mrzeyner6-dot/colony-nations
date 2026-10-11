@@ -2,6 +2,7 @@ package com.mrzeyner.colonynations.territory;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -90,6 +91,81 @@ public final class ChunkPolygons {
             polygons.add(new Polygon(outer, inside));
         }
         return List.copyOf(polygons);
+    }
+
+    /**
+     * State-land polygons. {@code blocked} chunks, such as a city claim, are not part of the fill:
+     * they are removed from the input and, when the state ring encloses them, cut out as holes.
+     */
+    public static List<Polygon> excluding(Collection<ChunkRef> state, Collection<ChunkRef> blocked) {
+        if (state == null || state.isEmpty()) {
+            return List.of();
+        }
+        Set<ChunkRef> owned = new HashSet<>();
+        Set<ChunkRef> holes = new HashSet<>();
+        String dimension = null;
+        for (ChunkRef chunk : state) {
+            if (chunk == null) {
+                continue;
+            }
+            if (dimension == null) {
+                dimension = chunk.dimension();
+            }
+            if (dimension.equals(chunk.dimension())) {
+                owned.add(chunk);
+            }
+        }
+        if (blocked != null) {
+            for (ChunkRef chunk : blocked) {
+                if (chunk != null && dimension.equals(chunk.dimension())) {
+                    owned.remove(chunk);
+                    holes.add(chunk);
+                }
+            }
+        }
+        List<Polygon> polygons = new ArrayList<>();
+        for (Polygon polygon : of(owned)) {
+            Set<ChunkRef> inside = new HashSet<>();
+            for (ChunkRef chunk : holes) {
+                if (covers(polygon, chunk.x() + 0.5, chunk.z() + 0.5)) {
+                    inside.add(chunk);
+                }
+            }
+            if (inside.isEmpty()) {
+                polygons.add(polygon);
+                continue;
+            }
+            List<List<Point>> extra = new ArrayList<>(polygon.holes());
+            for (Polygon claim : of(inside)) {
+                extra.add(asHole(claim.outer()));
+            }
+            polygons.add(new Polygon(polygon.outer(), extra));
+        }
+        return List.copyOf(polygons);
+    }
+
+    /**
+     * Whether the chunk-coordinate point lies in the outer ring and outside every hole.
+     */
+    public static boolean covers(Polygon polygon, double x, double z) {
+        if (polygon == null || !contains(polygon.outer(), x, z)) {
+            return false;
+        }
+        for (List<Point> hole : polygon.holes()) {
+            if (contains(hole, x, z)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static List<Point> asHole(List<Point> ring) {
+        if (signedArea(ring) < 0) {
+            List<Point> reversed = new ArrayList<>(ring);
+            Collections.reverse(reversed);
+            return reversed;
+        }
+        return ring;
     }
 
     private static List<Point> trace(Map<Long, List<Edge>> outgoing) {
