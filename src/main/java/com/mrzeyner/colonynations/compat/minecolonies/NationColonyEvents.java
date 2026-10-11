@@ -1,10 +1,14 @@
 package com.mrzeyner.colonynations.compat.minecolonies;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.command.Messages;
 import com.mrzeyner.colonynations.data.NationSavedData;
+import com.mrzeyner.colonynations.network.TerritorySync;
+import com.mrzeyner.colonynations.territory.ChunkRef;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.nation.NationException;
@@ -90,8 +94,11 @@ public final class NationColonyEvents {
         if (nation == null) {
             return;
         }
+        Set<ChunkRef> claim = new HashSet<>(ColonyClaimChunks.of(colony));
         data.registry().removeColony(nation.id(), city);
         ColonyClaimCache.forget(city);
+        claim.removeAll(ColonyClaimChunks.ofNation(data.registry().byId(nation.id()).orElse(nation)));
+        TerritorySync.cityChanged(server, nation.id(), claim, false);
         data.setDirty();
     }
 

@@ -2,7 +2,9 @@ package com.mrzeyner.colonynations.compat.minecolonies;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -14,6 +16,8 @@ import com.minecolonies.api.colony.IColonyManager;
 
 import com.mrzeyner.colonynations.command.Messages;
 import com.mrzeyner.colonynations.data.NationSavedData;
+import com.mrzeyner.colonynations.network.TerritorySync;
+import com.mrzeyner.colonynations.territory.ChunkRef;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.nation.NationException;
@@ -128,7 +132,11 @@ public final class NationCityCommands {
             } else if (!nation.cities().contains(city)) {
                 return Messages.error(source, "command.colony_nations.capital.not_in_nation", colonyId, nation.name());
             } else {
+                Set<ChunkRef> claim = new HashSet<>(ColonyClaimChunks.of(colony));
                 registry.removeColony(nation.id(), city);
+                ColonyClaimCache.forget(city);
+                claim.removeAll(ColonyClaimChunks.ofNation(data.registry().byId(nation.id()).orElse(nation)));
+                TerritorySync.cityChanged(source.getServer(), nation.id(), claim, false);
             }
         } catch (NationException exception) {
             if (exception.reason() == NationException.Reason.COLONY_TAKEN) {

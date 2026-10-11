@@ -15,6 +15,7 @@ import com.minecolonies.api.colony.IColony;
 import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.command.Messages;
 import com.mrzeyner.colonynations.data.NationSavedData;
+import com.mrzeyner.colonynations.network.TerritorySync;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.territory.AdminLimit;
@@ -83,9 +84,11 @@ public final class NationTerritoryCommands {
         if (nation.treasury() < price) {
             return Messages.error(source, "command.colony_nations.annex.afford", nation.name(), price, nation.treasury());
         }
+        Set<ChunkRef> before = data.territory().chunks(nation.id());
         data.registry().setTreasury(nation.id(), nation.treasury() - price);
         data.territory().claim(chunk, nation.id());
         data.setDirty();
+        TerritorySync.stateChanged(source.getServer(), nation.id(), before, data.territory().chunks(nation.id()));
         return Messages.success(
                 source,
                 "command.colony_nations.annex.success",
@@ -115,11 +118,13 @@ public final class NationTerritoryCommands {
             return Messages.error(source, "command.colony_nations.unannex.not_ours", nation.name());
         }
         Set<ChunkRef> cities = ColonyClaimChunks.ofNation(nation);
-        if (!TerritoryLinks.staysConnected(data.territory().chunks(nation.id()), cities, chunk)) {
+        Set<ChunkRef> before = data.territory().chunks(nation.id());
+        if (!TerritoryLinks.staysConnected(before, cities, chunk)) {
             return Messages.error(source, "command.colony_nations.unannex.cut");
         }
         data.territory().release(chunk);
         data.setDirty();
+        TerritorySync.stateChanged(source.getServer(), nation.id(), before, data.territory().chunks(nation.id()));
         return Messages.success(source, "command.colony_nations.unannex.success", chunk.x(), chunk.z());
     }
 

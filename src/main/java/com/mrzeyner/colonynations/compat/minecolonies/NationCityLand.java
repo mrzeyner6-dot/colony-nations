@@ -6,8 +6,11 @@ import java.util.UUID;
 
 import com.minecolonies.api.colony.IColony;
 
+import net.minecraft.server.level.ServerLevel;
+
 import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.data.NationSavedData;
+import com.mrzeyner.colonynations.network.TerritorySync;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.territory.ChunkRef;
@@ -22,6 +25,7 @@ public final class NationCityLand {
 
     public static void grant(NationSavedData data, UUID nationId, IColony colony) {
         CityRef city = MineColoniesCities.cityRef(colony);
+        Set<ChunkRef> before = new HashSet<>(data.territory().chunks(nationId));
         Set<ChunkRef> claim = ColonyClaimChunks.of(colony);
         ColonyClaimCache.remember(city, claim);
         Set<ChunkRef> otherCityLand = new HashSet<>();
@@ -41,5 +45,9 @@ public final class NationCityLand {
         }
         FoundingRing.grant(data.territory(), nationId, claim, otherCityLand, Config.FOUNDING_RING_CHUNKS.get());
         data.setDirty();
+        if (colony.getWorld() instanceof ServerLevel level) {
+            TerritorySync.stateChanged(level.getServer(), nationId, before, data.territory().chunks(nationId));
+            TerritorySync.cityChanged(level.getServer(), nationId, claim, true);
+        }
     }
 }

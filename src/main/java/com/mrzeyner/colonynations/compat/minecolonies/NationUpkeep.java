@@ -2,6 +2,7 @@ package com.mrzeyner.colonynations.compat.minecolonies;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import com.minecolonies.api.colony.IColony;
 
@@ -9,6 +10,7 @@ import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.command.Messages;
 import com.mrzeyner.colonynations.data.NationSavedData;
+import com.mrzeyner.colonynations.network.TerritorySync;
 import com.mrzeyner.colonynations.data.StoredNotice;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
@@ -107,6 +109,7 @@ public final class NationUpkeep {
             BlockPos pos = colony.getCenter();
             centers.add(new CityCenter(city, new ChunkRef(city.dimension(), pos.getX() >> 4, pos.getZ() >> 4)));
         }
+        Set<ChunkRef> before = data.territory().chunks(nation.id());
         Upkeep.Settlement settlement = Upkeep.settle(
                 nation.treasury(),
                 Config.UPKEEP_PER_CHUNK.get(),
@@ -121,6 +124,7 @@ public final class NationUpkeep {
         for (ChunkRef chunk : settlement.released()) {
             data.territory().release(chunk);
         }
+        TerritorySync.stateChanged(server, nation.id(), before, data.territory().chunks(nation.id()));
         Nation updated = data.registry().byId(nation.id()).orElse(nation);
         boolean shortfall = !settlement.released().isEmpty();
         String key = shortfall ? "command.colony_nations.upkeep.short" : "command.colony_nations.upkeep.paid";
