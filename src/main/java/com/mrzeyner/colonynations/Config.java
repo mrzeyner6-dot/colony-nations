@@ -78,6 +78,18 @@ public final class Config {
             .comment("Happiness factor at maxTaxRate.")
             .defineInRange("taxHappinessPenalty", 0.70, 0.0, 10.0);
 
+    public static final ModConfigSpec.DoubleValue UNREST_THRESHOLD = BUILDER
+            .comment("City happiness below this, on the 0–10 scale, raises separatism.")
+            .defineInRange("unrestThreshold", 5.0, 0.0, 10.0);
+
+    public static final ModConfigSpec.IntValue SEPARATISM_GROWTH = BUILDER
+            .comment("Separatism added per point of happiness below unrestThreshold.")
+            .defineInRange("separatismGrowth", 6, 0, 100);
+
+    public static final ModConfigSpec.IntValue SEPARATISM_DECAY = BUILDER
+            .comment("Separatism removed each day when happiness is at or above unrestThreshold.")
+            .defineInRange("separatismDecay", 4, 0, 100);
+
     static {
         BUILDER.pop();
     }

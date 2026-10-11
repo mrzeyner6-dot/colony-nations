@@ -9,6 +9,7 @@ import com.minecolonies.api.colony.IColonyManager;
 
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.data.NationSavedData;
+import com.mrzeyner.colonynations.economy.Separatism;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.territory.ChunkRef;
@@ -70,7 +71,8 @@ public final class ColonyClaimTicker {
             if (nameChanged) {
                 showCity = new ArrayList<>(after);
             }
-            TerritorySync.broadcastCity(server, nation, showCity, colony.getID(), name);
+            TerritorySync.broadcastCity(
+                    server, nation, showCity, colony.getID(), name, Separatism.unrest(nation.separatism(city)));
             TerritorySync.reconcile(server, data, left, gameTime);
             if (nameChanged || !showCity.isEmpty() || !left.isEmpty()) {
                 TerritorySync.relabelState(server, data, nation, city.dimension(), gameTime);

@@ -2,7 +2,9 @@ package com.mrzeyner.colonynations.nation;
 
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -33,6 +35,7 @@ public final class Nation {
     private final long createdGameTime;
     private final int taxRate;
     private final Long lastTaxChangeDay;
+    private final Map<CityRef, Integer> separatism;
 
     public Nation(
             UUID id,
@@ -44,7 +47,8 @@ public final class Nation {
             long treasury,
             long createdGameTime,
             int taxRate,
-            Long lastTaxChangeDay) {
+            Long lastTaxChangeDay,
+            Map<CityRef, Integer> separatism) {
         this.id = Objects.requireNonNull(id, "id");
         this.name = Objects.requireNonNull(name, "name");
         this.owner = Objects.requireNonNull(owner, "owner");
@@ -58,6 +62,7 @@ public final class Nation {
         this.createdGameTime = createdGameTime;
         this.taxRate = taxRate;
         this.lastTaxChangeDay = lastTaxChangeDay;
+        this.separatism = scores(this.cities, separatism);
     }
 
     public UUID id() {
@@ -109,27 +114,52 @@ public final class Nation {
         return lastTaxChangeDay;
     }
 
+    /**
+     * Separatism of a member city, from 0 to 100. Unknown and non-member cities are 0.
+     */
+    public int separatism(CityRef city) {
+        return separatism.getOrDefault(city, 0);
+    }
+
+    public Map<CityRef, Integer> separatism() {
+        return separatism;
+    }
+
     public Nation withName(String name) {
-        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay);
+        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, separatism);
     }
 
     public Nation withColor(int color) {
-        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay);
+        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, separatism);
     }
 
     public Nation withTreasury(long treasury) {
-        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay);
+        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, separatism);
     }
 
     public Nation withTax(int taxRate, Long lastTaxChangeDay) {
-        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay);
+        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, separatism);
+    }
+
+    public Nation withSeparatism(CityRef city, int score) {
+        if (!cities.contains(city)) {
+            throw new NationException(NationException.Reason.UNKNOWN_COLONY);
+        }
+        Map<CityRef, Integer> next = new LinkedHashMap<>(separatism);
+        int clamped = Math.max(0, Math.min(100, score));
+        if (clamped == 0) {
+            next.remove(city);
+        } else {
+            next.put(city, clamped);
+        }
+        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, next);
     }
 
     public Nation withCapital(CityRef city) {
         if (!cities.contains(city)) {
             throw new NationException(NationException.Reason.UNKNOWN_COLONY);
         }
-        return copy(name, color, city, cities, treasury, taxRate, lastTaxChangeDay);
+        return copy(name, color, city, cities, treasury, taxRate, lastTaxChangeDay, separatism);
     }
 
     /**
@@ -143,7 +173,7 @@ public final class Nation {
         Set<CityRef> next = new LinkedHashSet<>(cities);
         next.add(city);
         CityRef nextCapital = capital == null ? city : capital;
-        return copy(name, color, nextCapital, next, treasury, taxRate, lastTaxChangeDay);
+        return copy(name, color, nextCapital, next, treasury, taxRate, lastTaxChangeDay, separatism);
     }
 
     /**
@@ -160,7 +190,7 @@ public final class Nation {
         if (Objects.equals(nextCapital, city)) {
             nextCapital = next.stream().min(CAPITAL_ORDER).orElse(null);
         }
-        return copy(name, color, nextCapital, next, treasury, taxRate, lastTaxChangeDay);
+        return copy(name, color, nextCapital, next, treasury, taxRate, lastTaxChangeDay, separatism);
     }
 
     private Nation copy(
@@ -170,8 +200,27 @@ public final class Nation {
             Collection<CityRef> cities,
             long treasury,
             int taxRate,
-            Long lastTaxChangeDay) {
-        return new Nation(id, name, owner, color, capital, cities, treasury, createdGameTime, taxRate, lastTaxChangeDay);
+            Long lastTaxChangeDay,
+            Map<CityRef, Integer> separatism) {
+        return new Nation(
+                id, name, owner, color, capital, cities, treasury, createdGameTime, taxRate, lastTaxChangeDay, separatism);
+    }
+
+    private static Map<CityRef, Integer> scores(Set<CityRef> cities, Map<CityRef, Integer> separatism) {
+        Map<CityRef, Integer> scores = new LinkedHashMap<>();
+        if (separatism == null) {
+            return Map.of();
+        }
+        for (Map.Entry<CityRef, Integer> entry : separatism.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null || !cities.contains(entry.getKey())) {
+                continue;
+            }
+            int score = Math.max(0, Math.min(100, entry.getValue()));
+            if (score > 0) {
+                scores.put(entry.getKey(), score);
+            }
+        }
+        return Map.copyOf(scores);
     }
 
     @Override
@@ -191,11 +240,13 @@ public final class Nation {
                 && owner.equals(nation.owner)
                 && Objects.equals(capital, nation.capital)
                 && cities.equals(nation.cities)
-                && Objects.equals(lastTaxChangeDay, nation.lastTaxChangeDay);
+                && Objects.equals(lastTaxChangeDay, nation.lastTaxChangeDay)
+                && separatism.equals(nation.separatism);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, owner, color, capital, cities, treasury, createdGameTime, taxRate, lastTaxChangeDay);
+        return Objects.hash(
+                id, name, owner, color, capital, cities, treasury, createdGameTime, taxRate, lastTaxChangeDay, separatism);
     }
 }

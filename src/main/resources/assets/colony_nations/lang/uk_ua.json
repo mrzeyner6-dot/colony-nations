@@ -30,7 +30,14 @@
   "command.colony_nations.city.not_owner": "Ви не власник колонії #%s.",
   "command.colony_nations.city.taken": "Колонія #%s вже належить іншій державі.",
   "command.colony_nations.city.list.header": "Міста держави %s:",
-  "command.colony_nations.city.list.entry": "%s: #%s, %s%s, щастя %s",
+  "command.colony_nations.city.list.entry": "%s: #%s, %s%s, щастя %s, сепаратизм %s (%s)",
+  "command.colony_nations.separatism.stage.calm": "спокій",
+  "command.colony_nations.separatism.stage.unrest": "заворушення",
+  "command.colony_nations.separatism.stage.movement": "рух за відділення",
+  "command.colony_nations.separatism.stage.break": "відділення",
+  "command.colony_nations.separatism.unrest": "У місті %s держави %s заворушення.",
+  "command.colony_nations.separatism.movement": "Місто %s держави %s вимагає відділення.",
+  "command.colony_nations.separatism.set": "Сепаратизм міста %s (#%s) тепер %s.",
   "command.colony_nations.city.list.empty": "У держави %s немає міст.",
   "command.colony_nations.city.capital_mark": " — столиця",
   "command.colony_nations.city.no_mark": "",
@@ -86,5 +93,6 @@
   "command.colony_nations.territory.protected": "Ця земля належить державі.",
   "map.colony_nations.tooltip.state": "%s — Державна земля",
   "map.colony_nations.tooltip.city": "Місто «%s» — %s",
+  "map.colony_nations.tooltip.city.unrest": "Місто «%s» — %s — заворушення",
   "map.colony_nations.tooltip.core": "%s — околиці міста «%s»"
 }

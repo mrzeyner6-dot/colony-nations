@@ -8,6 +8,7 @@ import com.minecolonies.api.colony.IColony;
 
 import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.data.NationSavedData;
+import com.mrzeyner.colonynations.economy.Separatism;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.territory.ChunkRef;
@@ -36,7 +37,8 @@ public final class CityTerritory {
             data.setDirty();
         }
         String name = colony.getName() == null ? "" : colony.getName();
-        TerritorySync.broadcastCity(server, nation, claim, colony.getID(), name);
+        TerritorySync.broadcastCity(
+                server, nation, claim, colony.getID(), name, Separatism.unrest(nation.separatism(city)));
         TerritorySync.broadcastState(server, data, nation, ring, gameTime);
     }
 

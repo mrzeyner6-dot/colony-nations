@@ -92,7 +92,9 @@ public final class NationCityCommands {
                     city.colonyId(),
                     city.dimension(),
                     Messages.plain(markKey),
-                    CitizenTaxHappiness.format(MineColoniesCities.findByCity(city)));
+                    CitizenTaxHappiness.format(MineColoniesCities.findByCity(city)),
+                    nation.separatism(city),
+                    Messages.plain(SeparatismDay.stageKey(nation.separatism(city))));
         }
         return 1;
     }

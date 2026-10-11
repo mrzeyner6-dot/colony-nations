@@ -81,4 +81,28 @@ class NationCodecTerritoryTest {
         assertEquals(Nation.DEFAULT_TAX_RATE, again.registry().byId(rome.id()).orElseThrow().taxRate());
         assertEquals(rome.id(), again.territory().owner(chunk).orElseThrow());
     }
+
+    @Test
+    void version4MigratesToZeroSeparatism() {
+        NationRegistry registry = new NationRegistry();
+        Nation rome = registry.create("Rome", UUID.randomUUID(), 1, 1L);
+        CityRef city = new CityRef("minecraft:overworld", 4);
+        registry.addColony(rome.id(), city);
+        registry.setTax(rome.id(), 5, 3L);
+        registry.setSeparatism(rome.id(), city, 60);
+        TerritoryMap territory = new TerritoryMap();
+        ChunkRef chunk = new ChunkRef("minecraft:overworld", 2, 3);
+        territory.claim(chunk, rome.id());
+
+        NationCodec.Loaded loaded = NationCodec.load(NationCodec.writeVersion4(registry, territory));
+        Nation migrated = loaded.registry().byId(rome.id()).orElseThrow();
+        assertEquals(5, migrated.taxRate());
+        assertEquals(0, migrated.separatism(city));
+        assertEquals(rome.id(), loaded.territory().owner(chunk).orElseThrow());
+
+        registry.setSeparatism(rome.id(), city, 60);
+        NationCodec.Loaded round = NationCodec.load(NationCodec.write(registry, territory));
+        assertEquals(60, round.registry().byId(rome.id()).orElseThrow().separatism(city));
+        assertEquals(NationCodec.VERSION, round.version());
+    }
 }

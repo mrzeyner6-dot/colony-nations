@@ -7,7 +7,9 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -19,10 +21,11 @@ import com.mrzeyner.colonynations.territory.TerritoryMap;
  * {@code NationSavedData} stores these bytes inside NBT so the round trip can be tested without Minecraft.
  */
 public final class NationCodec {
-    public static final int VERSION = 4;
+    public static final int VERSION = 5;
     private static final int VERSION_WITH_NATIONS_ONLY = 2;
     private static final int VERSION_WITH_TERRITORY = 3;
     private static final int VERSION_WITH_TAX = 4;
+    private static final int VERSION_WITH_SEPARATISM = 5;
 
     static final Logger LOGGER = Logger.getLogger(NationCodec.class.getName());
 
@@ -71,6 +74,13 @@ public final class NationCodec {
      */
     static byte[] writeVersion3(NationRegistry registry, TerritoryMap territory) {
         return writeAt(VERSION_WITH_TERRITORY, registry, territory);
+    }
+
+    /**
+     * Version 4 layout: tax rate, no per-city separatism, plus territory.
+     */
+    static byte[] writeVersion4(NationRegistry registry, TerritoryMap territory) {
+        return writeAt(VERSION_WITH_TAX, registry, territory);
     }
 
     private static byte[] writeAt(int version, NationRegistry registry, TerritoryMap territory) {
@@ -162,6 +172,20 @@ public final class NationCodec {
                 out.writeLong(lastTaxChangeDay);
             }
         }
+        if (version >= VERSION_WITH_SEPARATISM) {
+            List<CityRef> scored = new ArrayList<>();
+            for (CityRef city : nation.separatism().keySet()) {
+                if (nation.separatism(city) > 0) {
+                    scored.add(city);
+                }
+            }
+            scored.sort(CITY_ORDER);
+            out.writeInt(scored.size());
+            for (CityRef city : scored) {
+                writeCity(out, city);
+                out.writeInt(nation.separatism(city));
+            }
+        }
     }
 
     private static Nation readNation(DataInputStream in, int version) throws IOException {
@@ -185,7 +209,25 @@ public final class NationCodec {
                 lastTaxChangeDay = in.readLong();
             }
         }
-        return new Nation(id, name, owner, color, capital, cities, treasury, createdGameTime, taxRate, lastTaxChangeDay);
+        Map<CityRef, Integer> separatism = new LinkedHashMap<>();
+        if (version >= VERSION_WITH_SEPARATISM) {
+            int scored = in.readInt();
+            for (int i = 0; i < scored; i++) {
+                separatism.put(readCity(in), in.readInt());
+            }
+        }
+        return new Nation(
+                id,
+                name,
+                owner,
+                color,
+                capital,
+                cities,
+                treasury,
+                createdGameTime,
+                taxRate,
+                lastTaxChangeDay,
+                separatism);
     }
 
     private static void writeCity(DataOutputStream out, CityRef city) throws IOException {

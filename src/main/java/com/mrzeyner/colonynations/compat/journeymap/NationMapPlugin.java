@@ -114,6 +114,7 @@ public final class NationMapPlugin implements IClientPlugin {
         Set<ChunkRef> state = new HashSet<>();
         Map<Integer, Set<ChunkRef>> cities = new HashMap<>();
         Map<Integer, String> cityNames = new HashMap<>();
+        Map<Integer, Boolean> cityUnrest = new HashMap<>();
         for (Map.Entry<ChunkRef, TerritoryClientCache.Plot> entry : TerritoryClientCache.plots().entrySet()) {
             TerritoryClientCache.Plot plot = entry.getValue();
             if (plot == null || !nationId.equals(plot.nation()) || !dimension.equals(entry.getKey().dimension())) {
@@ -125,6 +126,9 @@ public final class NationMapPlugin implements IClientPlugin {
                 if (!placeName.isEmpty()) {
                     cityNames.put(plot.colonyId(), placeName);
                 }
+                if (plot.unrest()) {
+                    cityUnrest.put(plot.colonyId(), true);
+                }
             } else {
                 state.add(entry.getKey());
             }
@@ -134,13 +138,16 @@ public final class NationMapPlugin implements IClientPlugin {
         overlays.addAll(polygons(level, nationName, nation.color(), state, false, I18n.get("map.colony_nations.tooltip.state", nationName)));
         for (Map.Entry<Integer, Set<ChunkRef>> city : cities.entrySet()) {
             String placeName = cityNames.getOrDefault(city.getKey(), "");
+            String titleKey = cityUnrest.getOrDefault(city.getKey(), false)
+                    ? "map.colony_nations.tooltip.city.unrest"
+                    : "map.colony_nations.tooltip.city";
             overlays.addAll(polygons(
                     level,
                     nationName,
                     nation.color(),
                     city.getValue(),
                     true,
-                    I18n.get("map.colony_nations.tooltip.city", placeName, nationName)));
+                    I18n.get(titleKey, placeName, nationName)));
         }
         if (!overlays.isEmpty()) {
             shown.put(nationId, overlays);

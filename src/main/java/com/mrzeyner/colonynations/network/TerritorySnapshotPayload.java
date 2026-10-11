@@ -39,7 +39,7 @@ public record TerritorySnapshotPayload(String dimension, List<NationPart> nation
     public static final byte CITY = 1;
     public static final byte CORE = 2;
 
-    public record PlotPart(int x, int z, int nationIndex, byte kind, int colonyId, String placeName) {
+    public record PlotPart(int x, int z, int nationIndex, byte kind, int colonyId, String placeName, boolean unrest) {
     }
 
     public static void encode(RegistryFriendlyByteBuf buf, TerritorySnapshotPayload payload) {
@@ -60,6 +60,7 @@ public record TerritorySnapshotPayload(String dimension, List<NationPart> nation
             if (plot.kind != STATE) {
                 buf.writeVarInt(plot.colonyId);
                 buf.writeUtf(plot.placeName == null ? "" : plot.placeName);
+                buf.writeBoolean(plot.unrest);
             }
         }
     }
@@ -80,11 +81,13 @@ public record TerritorySnapshotPayload(String dimension, List<NationPart> nation
             byte kind = buf.readByte();
             int colonyId = -1;
             String placeName = "";
+            boolean unrest = false;
             if (kind != STATE) {
                 colonyId = buf.readVarInt();
                 placeName = buf.readUtf();
+                unrest = buf.readBoolean();
             }
-            plots.add(new PlotPart(x, z, nationIndex, kind, colonyId, placeName));
+            plots.add(new PlotPart(x, z, nationIndex, kind, colonyId, placeName, unrest));
         }
         return new TerritorySnapshotPayload(dimension, nations, plots);
     }
@@ -103,7 +106,7 @@ public record TerritorySnapshotPayload(String dimension, List<NationPart> nation
                 UUID nation = payload.nations.get(plot.nationIndex).id;
                 plots.put(
                         new ChunkRef(payload.dimension, plot.x, plot.z),
-                        new TerritoryClientCache.Plot(nation, land(plot.kind), plot.colonyId, plot.placeName));
+                        new TerritoryClientCache.Plot(nation, land(plot.kind), plot.colonyId, plot.placeName, plot.unrest));
             }
             TerritoryClientCache.replace(payload.dimension, nations, plots);
         });

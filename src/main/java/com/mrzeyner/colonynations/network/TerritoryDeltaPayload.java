@@ -36,7 +36,16 @@ public record TerritoryDeltaPayload(String dimension, List<Change> changes) impl
             TerritoryDeltaPayload::encode,
             TerritoryDeltaPayload::decode);
 
-    public record Change(byte op, int x, int z, UUID nation, String name, int color, int colonyId, String placeName) {
+    public record Change(
+            byte op,
+            int x,
+            int z,
+            UUID nation,
+            String name,
+            int color,
+            int colonyId,
+            String placeName,
+            boolean unrest) {
         public Change {
             if (placeName == null) {
                 placeName = "";
@@ -44,19 +53,28 @@ public record TerritoryDeltaPayload(String dimension, List<Change> changes) impl
         }
 
         public static Change release(int x, int z) {
-            return new Change(RELEASE, x, z, new UUID(0L, 0L), "", 0, -1, "");
+            return new Change(RELEASE, x, z, new UUID(0L, 0L), "", 0, -1, "", false);
         }
 
-        public static Change plot(byte op, int x, int z, UUID nation, String name, int color, int colonyId, String placeName) {
-            return new Change(op, x, z, nation, name, color, colonyId, placeName);
+        public static Change plot(
+                byte op,
+                int x,
+                int z,
+                UUID nation,
+                String name,
+                int color,
+                int colonyId,
+                String placeName,
+                boolean unrest) {
+            return new Change(op, x, z, nation, name, color, colonyId, placeName, unrest);
         }
 
         public static Change nation(UUID nation, String name, int color) {
-            return new Change(NATION, 0, 0, nation, name, color, -1, "");
+            return new Change(NATION, 0, 0, nation, name, color, -1, "", false);
         }
 
         public static Change forget(UUID nation) {
-            return new Change(FORGET, 0, 0, nation, "", 0, -1, "");
+            return new Change(FORGET, 0, 0, nation, "", 0, -1, "", false);
         }
     }
 
@@ -76,6 +94,7 @@ public record TerritoryDeltaPayload(String dimension, List<Change> changes) impl
                 if (change.op == STATE || change.op == CITY || change.op == CORE) {
                     buf.writeVarInt(change.colonyId);
                     buf.writeUtf(change.placeName);
+                    buf.writeBoolean(change.unrest);
                 }
             }
         }
@@ -117,7 +136,8 @@ public record TerritoryDeltaPayload(String dimension, List<Change> changes) impl
                     TerritoryClientCache.putPlot(
                             payload.dimension,
                             chunk,
-                            new TerritoryClientCache.Plot(change.nation, land(change.op), change.colonyId, change.placeName));
+                            new TerritoryClientCache.Plot(
+                                    change.nation, land(change.op), change.colonyId, change.placeName, change.unrest));
                 }
             }
         });
@@ -135,11 +155,12 @@ public record TerritoryDeltaPayload(String dimension, List<Change> changes) impl
         if (op != STATE && op != CITY && op != CORE) {
             return nation;
         }
-        return new Change(op, x, z, nation.nation, nation.name, nation.color, buf.readVarInt(), buf.readUtf());
+        return new Change(
+                op, x, z, nation.nation, nation.name, nation.color, buf.readVarInt(), buf.readUtf(), buf.readBoolean());
     }
 
     private static Change readNation(byte op, int x, int z, RegistryFriendlyByteBuf buf) {
-        return new Change(op, x, z, new UUID(buf.readLong(), buf.readLong()), buf.readUtf(), buf.readInt(), -1, "");
+        return new Change(op, x, z, new UUID(buf.readLong(), buf.readLong()), buf.readUtf(), buf.readInt(), -1, "", false);
     }
 
     private static TerritoryClientCache.Land land(byte op) {

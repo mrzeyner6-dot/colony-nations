@@ -54,5 +54,6 @@ public final class NationDaily {
         NationTaxes.collect(server);
         NationUpkeep.run(server);
         CitizenTaxHappiness.refreshAll(server);
+        SeparatismDay.advance(server);
     }
 }

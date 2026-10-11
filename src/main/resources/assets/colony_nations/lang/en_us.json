@@ -30,7 +30,14 @@
   "command.colony_nations.city.not_owner": "You do not own colony #%s.",
   "command.colony_nations.city.taken": "Colony #%s already belongs to another nation.",
   "command.colony_nations.city.list.header": "Cities of %s:",
-  "command.colony_nations.city.list.entry": "%s: #%s, %s%s, happiness %s",
+  "command.colony_nations.city.list.entry": "%s: #%s, %s%s, happiness %s, separatism %s (%s)",
+  "command.colony_nations.separatism.stage.calm": "calm",
+  "command.colony_nations.separatism.stage.unrest": "unrest",
+  "command.colony_nations.separatism.stage.movement": "secession movement",
+  "command.colony_nations.separatism.stage.break": "breaking away",
+  "command.colony_nations.separatism.unrest": "Unrest in %s of %s.",
+  "command.colony_nations.separatism.movement": "City %s of %s demands to break away.",
+  "command.colony_nations.separatism.set": "Separatism of %s (#%s) is now %s.",
   "command.colony_nations.city.list.empty": "%s has no cities.",
   "command.colony_nations.city.capital_mark": " — capital",
   "command.colony_nations.city.no_mark": "",
@@ -86,5 +93,6 @@
   "command.colony_nations.territory.protected": "This land belongs to a nation.",
   "map.colony_nations.tooltip.state": "%s — State land",
   "map.colony_nations.tooltip.city": "City \"%s\" — %s",
+  "map.colony_nations.tooltip.city.unrest": "City \"%s\" — %s — unrest",
   "map.colony_nations.tooltip.core": "%s — outskirts of city \"%s\""
 }

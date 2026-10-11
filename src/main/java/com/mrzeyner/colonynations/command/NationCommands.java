@@ -22,6 +22,7 @@ import com.mrzeyner.colonynations.compat.minecolonies.NationDaily;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTaxCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTerritoryCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationUpkeep;
+import com.mrzeyner.colonynations.compat.minecolonies.SeparatismDay;
 import com.mrzeyner.colonynations.compat.minecolonies.TerritorySync;
 import com.mrzeyner.colonynations.compat.numismatics.NationTreasuryCommands;
 import com.mrzeyner.colonynations.data.NationSavedData;
@@ -107,7 +108,12 @@ public final class NationCommands {
                         .then(Commands.literal("upkeep")
                                 .then(Commands.literal("run").executes(NationUpkeep::runCommand)))
                         .then(Commands.literal("day")
-                                .then(Commands.literal("run").executes(NationDaily::runCommand)))));
+                                .then(Commands.literal("run").executes(NationDaily::runCommand)))
+                        .then(Commands.literal("city")
+                                .then(Commands.literal("separatism")
+                                        .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
+                                                .then(Commands.argument("value", IntegerArgumentType.integer(0, 100))
+                                                        .executes(SeparatismDay::set)))))));
     }
 
     private static int create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
