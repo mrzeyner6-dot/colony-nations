@@ -91,6 +91,7 @@ public final class Secession {
 
     public static void onColonyDeleted(MinecraftServer server, NationSavedData data, CityRef city) {
         data.takeOffer(city);
+        data.forgetFreeJoin(city);
         boolean free = false;
         for (FreeCity existing : data.freeCities()) {
             if (existing.city().equals(city)) {
@@ -307,7 +308,7 @@ public final class Secession {
         for (ChunkRef chunk : claim) {
             data.territory().release(chunk);
         }
-        data.addFreeCity(new FreeCity(city, label, FreeCity.GRAY));
+        data.addFreeCity(new FreeCity(city, label, FreeCity.GRAY, nation.id()));
         if (colony != null) {
             CitizenTaxHappiness.clear(colony);
             colony.getPermissions().setOwnerAbandoned();

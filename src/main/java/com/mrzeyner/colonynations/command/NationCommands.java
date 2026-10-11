@@ -80,7 +80,14 @@ public final class NationCommands {
                                 .then(Commands.argument("city", StringArgumentType.string())
                                         .suggests((ctx, builder) -> CityArguments.suggest(ctx.getSource(), builder, CityArguments.Pool.NATION))
                                         .executes(ctx -> NationCityCommands.remove(ctx, StringArgumentType.getString(ctx, "city")))))
-                        .then(Commands.literal("list").executes(NationCityCommands::list)))
+                        .then(Commands.literal("list").executes(NationCityCommands::list))
+                        .then(Commands.literal("buy")
+                                .executes(ctx -> NationOperations.buyCity(ctx.getSource(), null))
+                                .then(Commands.argument("city", StringArgumentType.string())
+                                        .suggests((ctx, builder) -> CityArguments.suggest(
+                                                ctx.getSource(), builder, CityArguments.Pool.FREE))
+                                        .executes(ctx -> NationOperations.buyCity(
+                                                ctx.getSource(), StringArgumentType.getString(ctx, "city"))))))
                 .then(Commands.literal("capital")
                         .executes(ctx -> NationCityCommands.capital(ctx, null))
                         .then(Commands.argument("city", StringArgumentType.string())
@@ -143,7 +150,16 @@ public final class NationCommands {
                                                 .suggests((ctx, builder) -> CityArguments.suggest(
                                                         ctx.getSource(), builder, CityArguments.Pool.MEMBER))
                                                 .executes(ctx -> Secession.force(
-                                                        ctx, StringArgumentType.getString(ctx, "city"))))))));
+                                                        ctx, StringArgumentType.getString(ctx, "city")))))
+                                .then(Commands.literal("give")
+                                        .then(Commands.argument("city", StringArgumentType.string())
+                                                .suggests((ctx, builder) -> CityArguments.suggest(
+                                                        ctx.getSource(), builder, CityArguments.Pool.FREE))
+                                                .then(Commands.argument("nation", StringArgumentType.string())
+                                                        .executes(ctx -> NationOperations.giveCity(
+                                                                ctx.getSource(),
+                                                                StringArgumentType.getString(ctx, "city"),
+                                                                StringArgumentType.getString(ctx, "nation")))))))));
     }
 
     private static int disband(CommandContext<CommandSourceStack> ctx, String nationName) throws CommandSyntaxException {

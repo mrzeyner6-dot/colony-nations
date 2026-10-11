@@ -11,6 +11,7 @@ public final class MenuLimits {
     public static final int COLOR = 16;
     public static final int CITIES = 48;
     public static final int OFFERS = 24;
+    public static final int FREE = 16;
 
     private MenuLimits() {
     }

@@ -13,7 +13,9 @@ import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.command.Messages;
 import com.mrzeyner.colonynations.command.NationOperations;
 import com.mrzeyner.colonynations.data.NationSavedData;
+import com.mrzeyner.colonynations.data.FreeCity;
 import com.mrzeyner.colonynations.data.SecessionOffer;
+import com.mrzeyner.colonynations.economy.FreeCityBuy;
 import com.mrzeyner.colonynations.economy.PopulationTax;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
@@ -98,6 +100,7 @@ public final class NationMenuServer {
             case NationActionPayload.TAX -> NationOperations.setTax(source, (int) payload.amount());
             case NationActionPayload.ACCEPT -> NationOperations.acceptOffer(source, payload.dimension(), payload.colonyId());
             case NationActionPayload.DECLINE -> NationOperations.declineOffer(source, payload.dimension(), payload.colonyId());
+            case NationActionPayload.BUY -> NationOperations.buyCity(source, payload.dimension(), payload.colonyId());
             default -> 0;
         };
     }
@@ -143,7 +146,8 @@ public final class NationMenuServer {
                 canTax,
                 canTax ? today : ready,
                 cities,
-                offers(data, nation));
+                offers(data, nation),
+                frees(player, data, nation, gameTime));
     }
 
     private static List<NationOverviewPayload.CityLine> cities(Nation nation) {
@@ -178,6 +182,38 @@ public final class NationMenuServer {
         }
         lines.sort(Comparator.comparing(NationOverviewPayload.OfferLine::dimension)
                 .thenComparingInt(NationOverviewPayload.OfferLine::colonyId));
+        return lines;
+    }
+
+    private static List<NationOverviewPayload.FreeLine> frees(
+            ServerPlayer player,
+            NationSavedData data,
+            Nation nation,
+            long gameTime) {
+        long today = player.server.overworld().getDayTime() / com.mrzeyner.colonynations.territory.Upkeep.TICKS_PER_DAY;
+        String here = player.level().dimension().location().toString();
+        List<NationOverviewPayload.FreeLine> lines = new ArrayList<>();
+        for (FreeCity free : data.freeCities()) {
+            FreeCityBuy.Quote quote = FreeCityJoin.quote(data, nation, free, gameTime, today);
+            boolean hereDimension = here.equals(free.city().dimension());
+            if (quote.distance() == Integer.MAX_VALUE && !hereDimension) {
+                continue;
+            }
+            IColony colony = MineColoniesCities.findByCity(free.city());
+            String name = free.name().isBlank() ? "#" + free.city().colonyId() : free.name();
+            lines.add(new NationOverviewPayload.FreeLine(
+                    free.city().dimension(),
+                    free.city().colonyId(),
+                    name,
+                    citizens(colony),
+                    quote.distance(),
+                    quote.price(),
+                    quote.block(),
+                    quote.readyDay()));
+        }
+        lines.sort(Comparator
+                .comparingInt((NationOverviewPayload.FreeLine line) -> line.distance() == Integer.MAX_VALUE ? Integer.MAX_VALUE : line.distance())
+                .thenComparing(NationOverviewPayload.FreeLine::name));
         return lines;
     }
 

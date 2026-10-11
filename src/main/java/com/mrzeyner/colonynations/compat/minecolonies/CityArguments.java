@@ -41,7 +41,9 @@ public final class CityArguments {
         /** Cities offered to this player's nation. */
         OFFER,
         /** Every city that belongs to some nation. Used by operator commands. */
-        MEMBER
+        MEMBER,
+        /** Free cities. Used by city buy and admin city give. */
+        FREE
     }
 
     public record Hit(Nation nation, CityRef city, IColony colony, String label) {
@@ -188,6 +190,10 @@ public final class CityArguments {
             Messages.error(source, "command.colony_nations.secession.no_offer", shown);
             return;
         }
+        if (pool == Pool.FREE) {
+            Messages.error(source, "command.colony_nations.freecity.not_free", shown);
+            return;
+        }
         if (pool == Pool.NATION && player != null) {
             Nation nation = data.registry().byOwner(player.getUUID()).orElse(null);
             if (nation == null) {
@@ -294,6 +300,13 @@ public final class CityArguments {
             case MEMBER -> {
                 for (Nation nation : data.registry().all()) {
                     addNation(hits, nation);
+                }
+            }
+            case FREE -> {
+                for (com.mrzeyner.colonynations.data.FreeCity free : data.freeCities()) {
+                    IColony colony = MineColoniesCities.findByCity(free.city());
+                    String label = free.name().isBlank() ? label(colony, free.city()) : free.name();
+                    hits.add(new Hit(null, free.city(), colony, label));
                 }
             }
         }

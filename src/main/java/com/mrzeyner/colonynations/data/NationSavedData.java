@@ -1,14 +1,17 @@
 package com.mrzeyner.colonynations.data;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
 
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.command.Messages;
+import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.NationCodec;
 import com.mrzeyner.colonynations.nation.NationRegistry;
 import com.mrzeyner.colonynations.territory.TerritoryMap;
@@ -34,6 +37,7 @@ public final class NationSavedData extends SavedData {
     private static final String FREE_CITIES = "FreeCities";
     private static final String OFFERS = "Offers";
     private static final String MENU_HINTS = "MenuHints";
+    private static final String FREE_JOIN_DAYS = "FreeJoinDays";
 
     private final NationRegistry registry;
     private final TerritoryMap territory;
@@ -41,6 +45,7 @@ public final class NationSavedData extends SavedData {
     private final List<FreeCity> freeCities = new ArrayList<>();
     private final List<SecessionOffer> offers = new ArrayList<>();
     private final Set<UUID> menuHints = new HashSet<>();
+    private final Map<CityRef, Long> freeJoinDays = new HashMap<>();
     private final byte[] preservedPayload;
     private final int unreadVersion;
     private Long lastUpkeepDay;
@@ -106,6 +111,28 @@ public final class NationSavedData extends SavedData {
         }
         setDirty();
         return true;
+    }
+
+    /**
+     * Game day a free city was last bought, or null when it has never been bought.
+     * Kept after the city joins a nation so a quick secession cannot be bought again immediately.
+     */
+    public Long freeJoinDay(CityRef city) {
+        return city == null ? null : freeJoinDays.get(city);
+    }
+
+    public void setFreeJoinDay(CityRef city, long day) {
+        if (city == null) {
+            return;
+        }
+        freeJoinDays.put(city, day);
+        setDirty();
+    }
+
+    public void forgetFreeJoin(CityRef city) {
+        if (city != null && freeJoinDays.remove(city) != null) {
+            setDirty();
+        }
     }
 
     public void addOffer(SecessionOffer offer) {
@@ -203,6 +230,7 @@ public final class NationSavedData extends SavedData {
         data.freeCities.addAll(readFreeCities(tag));
         data.offers.addAll(readOffers(tag));
         data.menuHints.addAll(readMenuHints(tag));
+        data.freeJoinDays.putAll(readFreeJoinDays(tag));
         if (tag.contains(LAST_UPKEEP_DAY)) {
             data.lastUpkeepDay = tag.getLong(LAST_UPKEEP_DAY);
         }
@@ -217,6 +245,7 @@ public final class NationSavedData extends SavedData {
         tag.put(FREE_CITIES, writeFreeCities());
         tag.put(OFFERS, writeOffers());
         tag.put(MENU_HINTS, writeMenuHints());
+        tag.put(FREE_JOIN_DAYS, writeFreeJoinDays());
         if (lastUpkeepDay != null) {
             tag.putLong(LAST_UPKEEP_DAY, lastUpkeepDay);
         }
@@ -269,6 +298,9 @@ public final class NationSavedData extends SavedData {
             tag.putInt("ColonyId", city.city().colonyId());
             tag.putString("Name", city.name());
             tag.putInt("Color", city.color());
+            if (city.formerNation() != null) {
+                tag.putString("Former", city.formerNation().toString());
+            }
             list.add(tag);
         }
         return list;
@@ -281,10 +313,19 @@ public final class NationSavedData extends SavedData {
             if (!(entry instanceof CompoundTag city)) {
                 continue;
             }
+            UUID former = null;
+            if (city.contains("Former") && !city.getString("Former").isBlank()) {
+                try {
+                    former = UUID.fromString(city.getString("Former"));
+                } catch (IllegalArgumentException ignored) {
+                    former = null;
+                }
+            }
             cities.add(new FreeCity(
-                    new com.mrzeyner.colonynations.nation.CityRef(city.getString("Dimension"), city.getInt("ColonyId")),
+                    new CityRef(city.getString("Dimension"), city.getInt("ColonyId")),
                     city.getString("Name"),
-                    city.getInt("Color")));
+                    city.getInt("Color"),
+                    former));
         }
         return cities;
     }
@@ -302,6 +343,33 @@ public final class NationSavedData extends SavedData {
             list.add(tag);
         }
         return list;
+    }
+
+    private ListTag writeFreeJoinDays() {
+        ListTag list = new ListTag();
+        for (Map.Entry<CityRef, Long> entry : freeJoinDays.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null) {
+                continue;
+            }
+            CompoundTag tag = new CompoundTag();
+            tag.putString("Dimension", entry.getKey().dimension());
+            tag.putInt("ColonyId", entry.getKey().colonyId());
+            tag.putLong("Day", entry.getValue());
+            list.add(tag);
+        }
+        return list;
+    }
+
+    private static Map<CityRef, Long> readFreeJoinDays(CompoundTag tag) {
+        Map<CityRef, Long> days = new HashMap<>();
+        ListTag list = tag.getList(FREE_JOIN_DAYS, Tag.TAG_COMPOUND);
+        for (Tag entry : list) {
+            if (!(entry instanceof CompoundTag day)) {
+                continue;
+            }
+            days.put(new CityRef(day.getString("Dimension"), day.getInt("ColonyId")), day.getLong("Day"));
+        }
+        return days;
     }
 
     private ListTag writeMenuHints() {

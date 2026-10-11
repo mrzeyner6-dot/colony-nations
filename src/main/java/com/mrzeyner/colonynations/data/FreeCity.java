@@ -8,7 +8,7 @@ import com.mrzeyner.colonynations.nation.CityRef;
 /**
  * A colony that left its nation and did not join another one.
  */
-public record FreeCity(CityRef city, String name, int color) {
+public record FreeCity(CityRef city, String name, int color, UUID formerNation) {
     public static final int GRAY = 0x8D8D8D;
 
     public FreeCity {

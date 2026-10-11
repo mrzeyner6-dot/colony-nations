@@ -91,8 +91,28 @@ public final class Config {
             .defineInRange("separatismDecay", 4, 0, 100);
 
     public static final ModConfigSpec.IntValue SECESSION_JOIN_RADIUS = BUILDER
-            .comment("Chebyshev chunk distance from a breaking city's claim to another nation's land. That nation is asked to take the city only when its tax is also lower.")
+            .comment("Chebyshev chunk distance from a breaking city's claim to another nation's land. That nation is asked to take the city only when its tax is also lower. The same radius lets a nation buy a free city.")
             .defineInRange("secessionJoinRadius", 8, 0, 128);
+
+    public static final ModConfigSpec.IntValue FREE_CITY_BASE_COST = BUILDER
+            .comment("Spurs charged to join a free city before its adults are counted.")
+            .defineInRange("freeCityBaseCost", 500, 0, 1_000_000);
+
+    public static final ModConfigSpec.IntValue FREE_CITY_COST_PER_CITIZEN = BUILDER
+            .comment("Extra spurs charged for each adult citizen when joining a free city.")
+            .defineInRange("freeCityCostPerCitizen", 50, 0, 1_000_000);
+
+    public static final ModConfigSpec.DoubleValue FREE_CITY_RETURN_MULTIPLIER = BUILDER
+            .comment("Price multiplier when the free city seceded from the nation that is buying it back.")
+            .defineInRange("freeCityReturnMultiplier", 1.5, 0.0, 100.0);
+
+    public static final ModConfigSpec.IntValue FREE_CITY_JOIN_SEPARATISM = BUILDER
+            .comment("Separatism of a free city on the day a nation buys it.")
+            .defineInRange("freeCityJoinSeparatism", 40, 0, 100);
+
+    public static final ModConfigSpec.IntValue FREE_CITY_JOIN_COOLDOWN_DAYS = BUILDER
+            .comment("Game days before the same free city can be bought again. The day it was bought counts as day zero.")
+            .defineInRange("freeCityJoinCooldownDays", 3, 0, 3650);
 
     static {
         BUILDER.pop();

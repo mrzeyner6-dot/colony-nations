@@ -185,6 +185,18 @@ public final class NationOperations {
         return Secession.respond(source, dimension, colonyId, false);
     }
 
+    public static int buyCity(CommandSourceStack source, String raw) throws CommandSyntaxException {
+        return com.mrzeyner.colonynations.compat.minecolonies.FreeCityJoin.buy(source, raw);
+    }
+
+    public static int buyCity(CommandSourceStack source, String dimension, int colonyId) throws CommandSyntaxException {
+        return com.mrzeyner.colonynations.compat.minecolonies.FreeCityJoin.buyAt(source, dimension, colonyId);
+    }
+
+    public static int giveCity(CommandSourceStack source, String raw, String nationName) throws CommandSyntaxException {
+        return com.mrzeyner.colonynations.compat.minecolonies.FreeCityJoin.give(source, raw, nationName);
+    }
+
     /**
      * @param nationName null when the action targets the sender's own nation
      */

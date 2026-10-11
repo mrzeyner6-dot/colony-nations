@@ -111,7 +111,7 @@ public final class ColonyClaimTicker {
         Set<ChunkRef> after = ColonyClaimCache.get().peek(city);
         boolean nameChanged = !name.equals(previousName);
         if (!name.equals(free.name())) {
-            data.addFreeCity(new FreeCity(city, name, FreeCity.GRAY));
+            data.addFreeCity(new FreeCity(city, name, FreeCity.GRAY, free.formerNation()));
         }
         List<ChunkRef> show = new ArrayList<>();
         List<ChunkRef> left = new ArrayList<>();

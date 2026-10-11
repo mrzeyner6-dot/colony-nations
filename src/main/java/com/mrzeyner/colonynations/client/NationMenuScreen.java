@@ -3,6 +3,7 @@ package com.mrzeyner.colonynations.client;
 import java.util.List;
 import java.util.Locale;
 
+import com.mrzeyner.colonynations.economy.FreeCityBuy;
 import com.mrzeyner.colonynations.economy.PopulationTax;
 import com.mrzeyner.colonynations.economy.Separatism;
 import com.mrzeyner.colonynations.economy.TaxHappiness;
@@ -27,6 +28,7 @@ public final class NationMenuScreen extends Screen {
     private static final int PANEL_W = 392;
     private static final int PANEL_H = 230;
     private static final int PAGE = 3;
+    private static final int FREE_PAGE = 2;
     private static final int TEXT = 0xFFD8D2E8;
     private static final int VALUE = 0xFFE0C3FF;
     private static final int ACCENT = 0xFFB07CFF;
@@ -39,11 +41,13 @@ public final class NationMenuScreen extends Screen {
     private NationOverviewPayload.Overview view;
     private int tab;
     private int cityPage;
+    private int freePage;
     private int offerPage;
     private int draftTax;
     private int serverTax = Integer.MIN_VALUE;
     private boolean confirmDisband;
     private NationOverviewPayload.CityLine confirmCity;
+    private NationOverviewPayload.FreeLine confirmFree;
     private boolean dirty = true;
     private int left;
     private int top;
@@ -61,12 +65,14 @@ public final class NationMenuScreen extends Screen {
             tab = 0;
             confirmDisband = false;
             confirmCity = null;
+            confirmFree = null;
         }
         if (view.taxRate() != serverTax) {
             serverTax = view.taxRate();
             draftTax = view.taxRate();
         }
-        cityPage = clampPage(cityPage, view.cities().size());
+        cityPage = clampPage(cityPage, view.cities().size(), cityPageSize());
+        freePage = clampPage(freePage, view.frees().size(), FREE_PAGE);
         offerPage = clampPage(offerPage, view.offers().size());
         dirty = true;
     }
@@ -94,7 +100,7 @@ public final class NationMenuScreen extends Screen {
             return;
         }
         tabs();
-        if (confirmDisband || confirmCity != null) {
+        if (confirmDisband || confirmCity != null || confirmFree != null) {
             confirm();
             return;
         }
@@ -124,11 +130,14 @@ public final class NationMenuScreen extends Screen {
             drawLines(graphics, left + 16, top + 32, Component.translatable("gui.colony_nations.found.lead"));
             return;
         }
-        if (confirmDisband || confirmCity != null) {
+        if (confirmDisband || confirmCity != null || confirmFree != null) {
             if (confirmDisband) {
                 drawLines(graphics, left + 116, top + 40, Component.translatable("gui.colony_nations.disband.ask", view.name()));
             } else if (confirmCity != null) {
                 drawLines(graphics, left + 116, top + 40, Component.translatable("gui.colony_nations.city.remove.ask", confirmCity.name()));
+            } else {
+                drawLines(graphics, left + 116, top + 40, Component.translatable(
+                        "gui.colony_nations.city.free_ask", confirmFree.name(), confirmFree.price()));
             }
             return;
         }
@@ -150,11 +159,15 @@ public final class NationMenuScreen extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (view.member() && scrollY != 0) {
             if (tab == 1) {
-                turn(scrollY, view.cities().size(), true);
+                if (!view.frees().isEmpty() && mouseY >= top + PANEL_H / 2.0) {
+                    shift(PAGE_FREES, scrollY > 0 ? -1 : 1, view.frees().size(), FREE_PAGE);
+                } else {
+                    shift(PAGE_CITIES, scrollY > 0 ? -1 : 1, view.cities().size(), cityPageSize());
+                }
                 return true;
             }
             if (tab == 5) {
-                turn(scrollY, view.offers().size(), false);
+                shift(PAGE_OFFERS, scrollY > 0 ? -1 : 1, view.offers().size(), PAGE);
                 return true;
             }
         }
@@ -202,6 +215,7 @@ public final class NationMenuScreen extends Screen {
         tab = index;
         confirmDisband = false;
         confirmCity = null;
+        confirmFree = null;
         dirty = true;
         if (index == 2) {
             PacketDistributor.sendToServer(new NationMenuRequestPayload(false));
@@ -243,15 +257,15 @@ public final class NationMenuScreen extends Screen {
 
     private void cities() {
         List<NationOverviewPayload.CityLine> cities = view.cities();
-        if (cities.isEmpty()) {
-            return;
-        }
-        int from = cityPage * PAGE;
+        List<NationOverviewPayload.FreeLine> frees = view.frees();
+        int page = cityPageSize();
+        int stride = frees.isEmpty() ? 48 : 40;
+        int from = cityPage * page;
         int x = left + 220;
         int y = top + 46;
-        for (int i = from; i < Math.min(cities.size(), from + PAGE); i++) {
+        for (int i = from; i < Math.min(cities.size(), from + page); i++) {
             NationOverviewPayload.CityLine city = cities.get(i);
-            int row = y + (i - from) * 48;
+            int row = y + (i - from) * stride;
             addRenderableWidget(Button.builder(Component.translatable("gui.colony_nations.city.capital"), button ->
                             send(NationActionPayload.CAPITAL, "", 0L, city.dimension(), city.colonyId()))
                     .bounds(x, row, 150, 18)
@@ -263,7 +277,31 @@ public final class NationMenuScreen extends Screen {
                     .bounds(x, row + 20, 150, 18)
                     .build());
         }
-        pager(view.cities().size(), cityPage, true);
+        if (!frees.isEmpty()) {
+            int freeFrom = freePage * FREE_PAGE;
+            int base = freeHeaderY() + 12;
+            for (int i = freeFrom; i < Math.min(frees.size(), freeFrom + FREE_PAGE); i++) {
+                NationOverviewPayload.FreeLine free = frees.get(i);
+                int row = base + (i - freeFrom) * 32;
+                Button join = Button.builder(Component.translatable("gui.colony_nations.city.free_join"), button -> {
+                            confirmFree = free;
+                            dirty = true;
+                        })
+                        .bounds(left + PANEL_W - 104, row, 96, 18)
+                        .build();
+                join.active = free.block() == FreeCityBuy.OK;
+                Component tip = freeTip(free);
+                if (tip != null) {
+                    join.setTooltip(Tooltip.create(tip));
+                }
+                addRenderableWidget(join);
+            }
+        }
+        if (pageCount(cities.size(), page) > 1) {
+            pager(cities.size(), PAGE_CITIES, page);
+        } else if (!frees.isEmpty() && pageCount(frees.size(), FREE_PAGE) > 1) {
+            pager(frees.size(), PAGE_FREES, FREE_PAGE);
+        }
     }
 
     private void territory() {
@@ -359,7 +397,7 @@ public final class NationMenuScreen extends Screen {
                     .bounds(x + 150, row + 18, 100, 18)
                     .build());
         }
-        pager(offers.size(), offerPage, false);
+        pager(offers.size(), PAGE_OFFERS, PAGE);
     }
 
     private void confirm() {
@@ -370,9 +408,12 @@ public final class NationMenuScreen extends Screen {
                         send(NationActionPayload.DISBAND, "", 0L, "", 0);
                     } else if (confirmCity != null) {
                         send(NationActionPayload.REMOVE, "", 0L, confirmCity.dimension(), confirmCity.colonyId());
+                    } else if (confirmFree != null) {
+                        send(NationActionPayload.BUY, "", 0L, confirmFree.dimension(), confirmFree.colonyId());
                     }
                     confirmDisband = false;
                     confirmCity = null;
+                    confirmFree = null;
                     dirty = true;
                 })
                 .bounds(x, y, 100, 20)
@@ -380,38 +421,36 @@ public final class NationMenuScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("gui.colony_nations.confirm.no"), button -> {
                     confirmDisband = false;
                     confirmCity = null;
+                    confirmFree = null;
                     dirty = true;
                 })
                 .bounds(x + 108, y, 100, 20)
                 .build());
     }
 
-    private void pager(int size, int page, boolean cities) {
-        int pages = pageCount(size);
-        if (pages <= 1) {
+    private void pager(int size, int target, int pageSize) {
+        if (pageCount(size, pageSize) <= 1) {
             return;
         }
         int x = left + 116;
         int y = top + PANEL_H - 28;
-        addRenderableWidget(Button.builder(Component.translatable("gui.colony_nations.page.prev"), button -> shift(cities, -1, size))
+        addRenderableWidget(Button.builder(Component.translatable("gui.colony_nations.page.prev"), button -> shift(target, -1, size, pageSize))
                 .bounds(x, y, 80, 18)
                 .build());
-        addRenderableWidget(Button.builder(Component.translatable("gui.colony_nations.page.next"), button -> shift(cities, 1, size))
+        addRenderableWidget(Button.builder(Component.translatable("gui.colony_nations.page.next"), button -> shift(target, 1, size, pageSize))
                 .bounds(x + 88, y, 80, 18)
                 .build());
     }
 
-    private void shift(boolean cities, int delta, int size) {
-        if (cities) {
-            cityPage = clampPage(cityPage + delta, size);
+    private void shift(int target, int delta, int size, int pageSize) {
+        if (target == PAGE_CITIES) {
+            cityPage = clampPage(cityPage + delta, size, pageSize);
+        } else if (target == PAGE_FREES) {
+            freePage = clampPage(freePage + delta, size, pageSize);
         } else {
-            offerPage = clampPage(offerPage + delta, size);
+            offerPage = clampPage(offerPage + delta, size, pageSize);
         }
         dirty = true;
-    }
-
-    private void turn(double scrollY, int size, boolean cities) {
-        shift(cities, scrollY > 0 ? -1 : 1, size);
     }
 
     private void renderOverview(GuiGraphics graphics, int x, int y) {
@@ -432,32 +471,69 @@ public final class NationMenuScreen extends Screen {
 
     private void renderCities(GuiGraphics graphics, int x, int y) {
         List<NationOverviewPayload.CityLine> cities = view.cities();
-        if (cities.isEmpty()) {
+        List<NationOverviewPayload.FreeLine> frees = view.frees();
+        if (cities.isEmpty() && frees.isEmpty()) {
             line(graphics, x, y, Component.translatable("gui.colony_nations.city.empty"));
             return;
         }
-        int from = cityPage * PAGE;
-        for (int i = from; i < Math.min(cities.size(), from + PAGE); i++) {
-            NationOverviewPayload.CityLine city = cities.get(i);
-            int row = y + (i - from) * 48;
-            Component name = Component.literal(city.name()).withColor(VALUE);
-            if (city.capital()) {
-                name = name.copy().append(Component.translatable("gui.colony_nations.city.capital_mark").withColor(ACCENT));
+        int page = cityPageSize();
+        int stride = frees.isEmpty() ? 48 : 40;
+        if (cities.isEmpty()) {
+            line(graphics, x, y, Component.translatable("gui.colony_nations.city.empty"));
+        } else {
+            int from = cityPage * page;
+            for (int i = from; i < Math.min(cities.size(), from + page); i++) {
+                NationOverviewPayload.CityLine city = cities.get(i);
+                int row = y + (i - from) * stride;
+                Component name = Component.literal(city.name()).withColor(VALUE);
+                if (city.capital()) {
+                    name = name.copy().append(Component.translatable("gui.colony_nations.city.capital_mark").withColor(ACCENT));
+                }
+                graphics.drawString(font, name, x, row, VALUE, false);
+                graphics.drawString(
+                        font,
+                        Component.translatable("gui.colony_nations.city.people", city.citizens(), happiness(city.happinessMilli())),
+                        x,
+                        row + 12,
+                        TEXT,
+                        false);
+                int score = Math.max(0, Math.min(100, city.separatism()));
+                int color = stageColor(score);
+                int bar = frees.isEmpty() ? row + 26 : row + 24;
+                graphics.fill(x, bar, x + 80, bar + 4, 0xFF2A2438);
+                graphics.fill(x, bar, x + (int) (80 * (score / 100.0)), bar + 4, color);
+                graphics.drawString(font, Integer.toString(score), x + 84, bar - 4, color, false);
             }
-            graphics.drawString(font, name, x, row, VALUE, false);
-            graphics.drawString(
-                    font,
-                    Component.translatable("gui.colony_nations.city.people", city.citizens(), happiness(city.happinessMilli())),
-                    x,
-                    row + 12,
-                    TEXT,
-                    false);
-            int score = Math.max(0, Math.min(100, city.separatism()));
-            int color = stageColor(score);
-            graphics.fill(x, row + 26, x + 80, row + 30, 0xFF2A2438);
-            graphics.fill(x, row + 26, x + (int) (80 * (score / 100.0)), row + 30, color);
-            graphics.drawString(font, Integer.toString(score), x + 84, row + 22, color, false);
         }
+        if (frees.isEmpty()) {
+            return;
+        }
+        int header = freeHeaderY();
+        graphics.drawString(font, Component.translatable("gui.colony_nations.city.free_header"), x, header, ACCENT, false);
+        int freeFrom = freePage * FREE_PAGE;
+        for (int i = freeFrom; i < Math.min(frees.size(), freeFrom + FREE_PAGE); i++) {
+            NationOverviewPayload.FreeLine free = frees.get(i);
+            int row = header + 12 + (i - freeFrom) * 32;
+            drawWidth(
+                    graphics,
+                    x,
+                    row,
+                    PANEL_W - 116 - 112,
+                    Component.translatable(
+                            "gui.colony_nations.city.free_line",
+                            Component.literal(free.name()).withColor(VALUE),
+                            free.citizens(),
+                            chunks(free.distance()),
+                            free.price()));
+        }
+    }
+
+    private int freeHeaderY() {
+        if (view.cities().isEmpty()) {
+            return top + 48;
+        }
+        int stride = view.frees().isEmpty() ? 48 : 40;
+        return top + 46 + cityPageSize() * stride + 6;
     }
 
     private void renderTerritory(GuiGraphics graphics, int x, int y) {
@@ -545,6 +621,17 @@ public final class NationMenuScreen extends Screen {
         }
     }
 
+    private void drawWidth(GuiGraphics graphics, int x, int y, int width, Component text) {
+        int drawn = 0;
+        for (FormattedCharSequence line : font.split(text, width)) {
+            graphics.drawString(font, line, x, y, TEXT, false);
+            y += 10;
+            if (++drawn == 2) {
+                return;
+            }
+        }
+    }
+
     private void send(byte action, String text, long amount, String dimension, int colonyId) {
         PacketDistributor.sendToServer(new NationActionPayload(action, text == null ? "" : text, amount, dimension == null ? "" : dimension, colonyId));
     }
@@ -564,17 +651,50 @@ public final class NationMenuScreen extends Screen {
         return String.format(Locale.ROOT, "%.1f", milli / 1000.0);
     }
 
+    private int cityPageSize() {
+        return view.frees().isEmpty() ? PAGE : FREE_PAGE;
+    }
+
+    private Component freeTip(NationOverviewPayload.FreeLine free) {
+        return switch (free.block()) {
+            case FreeCityBuy.TOO_FAR -> Component.translatable("gui.colony_nations.city.free_far");
+            case FreeCityBuy.COOLDOWN -> Component.translatable("gui.colony_nations.city.free_cooldown", free.readyDay());
+            case FreeCityBuy.POOR -> Component.translatable("gui.colony_nations.city.free_poor", free.price());
+            default -> null;
+        };
+    }
+
+    private static String chunks(int distance) {
+        if (distance < 0 || distance == Integer.MAX_VALUE) {
+            return "—";
+        }
+        return Integer.toString(distance);
+    }
+
     private static int pageCount(int size) {
-        return Math.max(1, (size + PAGE - 1) / PAGE);
+        return pageCount(size, PAGE);
+    }
+
+    private static int pageCount(int size, int pageSize) {
+        int step = Math.max(1, pageSize);
+        return Math.max(1, (size + step - 1) / step);
     }
 
     private static int clampPage(int page, int size) {
-        int pages = pageCount(size);
+        return clampPage(page, size, PAGE);
+    }
+
+    private static int clampPage(int page, int size, int pageSize) {
+        int pages = pageCount(size, pageSize);
         if (page < 0) {
             return 0;
         }
         return Math.min(page, pages - 1);
     }
+
+    private static final int PAGE_CITIES = 0;
+    private static final int PAGE_OFFERS = 1;
+    private static final int PAGE_FREES = 2;
 
     /**
      * Same codes as {@link com.mrzeyner.colonynations.compat.minecolonies.NationTerritoryCommands.Preview}.
