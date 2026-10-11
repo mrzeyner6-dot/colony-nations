@@ -36,6 +36,7 @@ public final class Nation {
     private final int taxRate;
     private final Long lastTaxChangeDay;
     private final Map<CityRef, Integer> separatism;
+    private final Map<CityRef, Long> graceDays;
 
     public Nation(
             UUID id,
@@ -49,6 +50,22 @@ public final class Nation {
             int taxRate,
             Long lastTaxChangeDay,
             Map<CityRef, Integer> separatism) {
+        this(id, name, owner, color, capital, cities, treasury, createdGameTime, taxRate, lastTaxChangeDay, separatism, Map.of());
+    }
+
+    public Nation(
+            UUID id,
+            String name,
+            UUID owner,
+            int color,
+            CityRef capital,
+            Collection<CityRef> cities,
+            long treasury,
+            long createdGameTime,
+            int taxRate,
+            Long lastTaxChangeDay,
+            Map<CityRef, Integer> separatism,
+            Map<CityRef, Long> graceDays) {
         this.id = Objects.requireNonNull(id, "id");
         this.name = Objects.requireNonNull(name, "name");
         this.owner = Objects.requireNonNull(owner, "owner");
@@ -63,6 +80,7 @@ public final class Nation {
         this.taxRate = taxRate;
         this.lastTaxChangeDay = lastTaxChangeDay;
         this.separatism = scores(this.cities, separatism);
+        this.graceDays = keepGrace(this.cities, graceDays);
     }
 
     public UUID id() {
@@ -125,20 +143,31 @@ public final class Nation {
         return separatism;
     }
 
+    /**
+     * Game day the separatism grace period started, or null when this city has never been granted one.
+     */
+    public Long graceDay(CityRef city) {
+        return graceDays.get(city);
+    }
+
+    public Map<CityRef, Long> graceDays() {
+        return graceDays;
+    }
+
     public Nation withName(String name) {
-        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, separatism);
+        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, separatism, graceDays);
     }
 
     public Nation withColor(int color) {
-        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, separatism);
+        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, separatism, graceDays);
     }
 
     public Nation withTreasury(long treasury) {
-        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, separatism);
+        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, separatism, graceDays);
     }
 
     public Nation withTax(int taxRate, Long lastTaxChangeDay) {
-        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, separatism);
+        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, separatism, graceDays);
     }
 
     public Nation withSeparatism(CityRef city, int score) {
@@ -152,14 +181,23 @@ public final class Nation {
         } else {
             next.put(city, clamped);
         }
-        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, next);
+        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, next, graceDays);
+    }
+
+    public Nation withGrace(CityRef city, long day) {
+        if (!cities.contains(city)) {
+            throw new NationException(NationException.Reason.UNKNOWN_COLONY);
+        }
+        Map<CityRef, Long> next = new LinkedHashMap<>(graceDays);
+        next.put(city, day);
+        return copy(name, color, capital, cities, treasury, taxRate, lastTaxChangeDay, separatism, next);
     }
 
     public Nation withCapital(CityRef city) {
         if (!cities.contains(city)) {
             throw new NationException(NationException.Reason.UNKNOWN_COLONY);
         }
-        return copy(name, color, city, cities, treasury, taxRate, lastTaxChangeDay, separatism);
+        return copy(name, color, city, cities, treasury, taxRate, lastTaxChangeDay, separatism, graceDays);
     }
 
     /**
@@ -173,7 +211,7 @@ public final class Nation {
         Set<CityRef> next = new LinkedHashSet<>(cities);
         next.add(city);
         CityRef nextCapital = capital == null ? city : capital;
-        return copy(name, color, nextCapital, next, treasury, taxRate, lastTaxChangeDay, separatism);
+        return copy(name, color, nextCapital, next, treasury, taxRate, lastTaxChangeDay, separatism, graceDays);
     }
 
     /**
@@ -190,7 +228,7 @@ public final class Nation {
         if (Objects.equals(nextCapital, city)) {
             nextCapital = next.stream().min(CAPITAL_ORDER).orElse(null);
         }
-        return copy(name, color, nextCapital, next, treasury, taxRate, lastTaxChangeDay, separatism);
+        return copy(name, color, nextCapital, next, treasury, taxRate, lastTaxChangeDay, separatism, graceDays);
     }
 
     private Nation copy(
@@ -201,9 +239,21 @@ public final class Nation {
             long treasury,
             int taxRate,
             Long lastTaxChangeDay,
-            Map<CityRef, Integer> separatism) {
+            Map<CityRef, Integer> separatism,
+            Map<CityRef, Long> graceDays) {
         return new Nation(
-                id, name, owner, color, capital, cities, treasury, createdGameTime, taxRate, lastTaxChangeDay, separatism);
+                id,
+                name,
+                owner,
+                color,
+                capital,
+                cities,
+                treasury,
+                createdGameTime,
+                taxRate,
+                lastTaxChangeDay,
+                separatism,
+                graceDays);
     }
 
     private static Map<CityRef, Integer> scores(Set<CityRef> cities, Map<CityRef, Integer> separatism) {
@@ -221,6 +271,19 @@ public final class Nation {
             }
         }
         return Map.copyOf(scores);
+    }
+
+    private static Map<CityRef, Long> keepGrace(Set<CityRef> cities, Map<CityRef, Long> graceDays) {
+        Map<CityRef, Long> kept = new LinkedHashMap<>();
+        if (graceDays == null) {
+            return Map.of();
+        }
+        for (Map.Entry<CityRef, Long> entry : graceDays.entrySet()) {
+            if (entry.getKey() != null && entry.getValue() != null && cities.contains(entry.getKey())) {
+                kept.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return Map.copyOf(kept);
     }
 
     @Override
@@ -241,12 +304,24 @@ public final class Nation {
                 && Objects.equals(capital, nation.capital)
                 && cities.equals(nation.cities)
                 && Objects.equals(lastTaxChangeDay, nation.lastTaxChangeDay)
-                && separatism.equals(nation.separatism);
+                && separatism.equals(nation.separatism)
+                && graceDays.equals(nation.graceDays);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                id, name, owner, color, capital, cities, treasury, createdGameTime, taxRate, lastTaxChangeDay, separatism);
+                id,
+                name,
+                owner,
+                color,
+                capital,
+                cities,
+                treasury,
+                createdGameTime,
+                taxRate,
+                lastTaxChangeDay,
+                separatism,
+                graceDays);
     }
 }

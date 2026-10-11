@@ -153,6 +153,7 @@ public final class FreeCityJoin {
         Set<ChunkRef> claim = new HashSet<>(ColonyClaimCache.get().chunks(colony, gameTime));
         try {
             data.registry().addColony(nation.id(), free.city());
+            data.grantGrace(nation.id(), free.city(), today);
         } catch (NationException exception) {
             return Messages.error(source, "command.colony_nations.city.taken", free.city().colonyId());
         }

@@ -105,4 +105,25 @@ class NationCodecTerritoryTest {
         assertEquals(60, round.registry().byId(rome.id()).orElseThrow().separatism(city));
         assertEquals(NationCodec.VERSION, round.version());
     }
+
+    @Test
+    void version5HasNoGraceUntilItIsGranted() {
+        NationRegistry registry = new NationRegistry();
+        Nation rome = registry.create("Rome", UUID.randomUUID(), 1, 1L);
+        CityRef city = new CityRef("minecraft:overworld", 4);
+        registry.addColony(rome.id(), city);
+        registry.setSeparatism(rome.id(), city, 12);
+        registry.grantGrace(rome.id(), city, 3L);
+
+        NationCodec.Loaded old = NationCodec.load(NationCodec.writeVersion5(registry, new TerritoryMap()));
+        Nation migrated = old.registry().byId(rome.id()).orElseThrow();
+        assertEquals(12, migrated.separatism(city));
+        assertEquals(null, migrated.graceDay(city));
+        assertEquals(5, old.version());
+
+        assertTrue(old.registry().grantMissingGrace(20L));
+        NationCodec.Loaded again = NationCodec.load(NationCodec.write(old));
+        assertEquals(20L, again.registry().byId(rome.id()).orElseThrow().graceDay(city));
+        assertEquals(NationCodec.VERSION, again.version());
+    }
 }

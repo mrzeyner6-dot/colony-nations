@@ -26,7 +26,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
  */
 public final class NationMenuScreen extends Screen {
     private static final int PANEL_W = 392;
-    private static final int PANEL_H = 230;
+    private static final int PANEL_H = 260;
     private static final int PAGE = 3;
     private static final int FREE_PAGE = 2;
     private static final int TEXT = 0xFFD8D2E8;
@@ -260,7 +260,7 @@ public final class NationMenuScreen extends Screen {
         List<NationOverviewPayload.CityLine> cities = view.cities();
         List<NationOverviewPayload.FreeLine> frees = view.frees();
         int page = cityPageSize();
-        int stride = frees.isEmpty() ? 48 : 40;
+        int stride = 48;
         int from = cityPage * page;
         int x = left + 220;
         int y = top + 46;
@@ -493,7 +493,7 @@ public final class NationMenuScreen extends Screen {
             return;
         }
         int page = cityPageSize();
-        int stride = frees.isEmpty() ? 48 : 40;
+        int stride = 48;
         if (cities.isEmpty()) {
             line(graphics, x, y, Component.translatable("gui.colony_nations.city.empty"));
         } else {
@@ -515,10 +515,11 @@ public final class NationMenuScreen extends Screen {
                         false);
                 int score = Math.max(0, Math.min(100, city.separatism()));
                 int color = stageColor(score);
-                int bar = frees.isEmpty() ? row + 26 : row + 24;
+                int bar = row + 26;
                 graphics.fill(x, bar, x + 80, bar + 4, 0xFF2A2438);
                 graphics.fill(x, bar, x + (int) (80 * (score / 100.0)), bar + 4, color);
                 graphics.drawString(font, Integer.toString(score), x + 84, bar - 4, color, false);
+                drawOne(graphics, x, row + 36, 96, causeText(city));
             }
         }
         if (frees.isEmpty()) {
@@ -548,8 +549,7 @@ public final class NationMenuScreen extends Screen {
         if (view.cities().isEmpty()) {
             return top + 48;
         }
-        int stride = view.frees().isEmpty() ? 48 : 40;
-        return top + 46 + cityPageSize() * stride + 6;
+        return top + 46 + cityPageSize() * 48 + 6;
     }
 
     private void renderTerritory(GuiGraphics graphics, int x, int y) {
@@ -637,6 +637,13 @@ public final class NationMenuScreen extends Screen {
         }
     }
 
+    private void drawOne(GuiGraphics graphics, int x, int y, int width, Component text) {
+        var lines = font.split(text, width);
+        if (!lines.isEmpty()) {
+            graphics.drawString(font, lines.get(0), x, y, TEXT, false);
+        }
+    }
+
     private void drawWidth(GuiGraphics graphics, int x, int y, int width, Component text) {
         int drawn = 0;
         for (FormattedCharSequence line : font.split(text, width)) {
@@ -669,6 +676,15 @@ public final class NationMenuScreen extends Screen {
 
     private int cityPageSize() {
         return view.frees().isEmpty() ? PAGE : FREE_PAGE;
+    }
+
+    private Component causeText(NationOverviewPayload.CityLine city) {
+        return switch (city.cause()) {
+            case 1 -> Component.translatable("command.colony_nations.separatism.cause.grace", city.graceDays());
+            case 2 -> Component.translatable("command.colony_nations.separatism.cause.tax");
+            case 3 -> Component.translatable("command.colony_nations.separatism.cause.collapse");
+            default -> Component.translatable("command.colony_nations.separatism.cause.calm");
+        };
     }
 
     private Component freeTip(NationOverviewPayload.FreeLine free) {

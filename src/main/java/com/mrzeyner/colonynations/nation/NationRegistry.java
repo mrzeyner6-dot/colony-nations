@@ -125,6 +125,37 @@ public final class NationRegistry {
         return updated;
     }
 
+    /**
+     * Starts the separatism grace period. A city that already has a start day is left alone.
+     *
+     * @return true when the day was stored
+     */
+    public boolean grantGrace(UUID nationId, CityRef city, long day) {
+        Nation current = requireNation(nationId);
+        if (!current.cities().contains(city) || current.graceDay(city) != null) {
+            return false;
+        }
+        nations.put(nationId, current.withGrace(city, day));
+        return true;
+    }
+
+    /**
+     * Cities from a save written before grace days get the current day. Later joins set their own day.
+     *
+     * @return true when at least one city was stamped
+     */
+    public boolean grantMissingGrace(long day) {
+        boolean changed = false;
+        for (Nation nation : List.copyOf(nations.values())) {
+            for (CityRef city : nation.cities()) {
+                if (nation.graceDay(city) == null && grantGrace(nation.id(), city, day)) {
+                    changed = true;
+                }
+            }
+        }
+        return changed;
+    }
+
     public Optional<Nation> byId(UUID nationId) {
         return Optional.ofNullable(nations.get(nationId));
     }

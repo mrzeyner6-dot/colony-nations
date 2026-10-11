@@ -2,7 +2,8 @@ package com.mrzeyner.colonynations.economy;
 
 /**
  * Per-city separatism, from 0 to 100.
- * Below the unrest threshold the score grows; at or above it the score falls.
+ * The score grows only while the state presses (tax above the neutral rate) or the city has collapsed.
+ * A grace period blocks growth. Otherwise the score falls.
  * A capital never rises above {@link #CAPITAL_CAP} on the daily step.
  */
 public final class Separatism {
@@ -24,6 +25,14 @@ public final class Separatism {
         UNREST,
         MOVEMENT,
         INDEPENDENCE
+    }
+
+    /** Why the scale is moving, shown beside it. Order is the menu payload. */
+    public enum Cause {
+        CALM,
+        GRACE,
+        TAX,
+        COLLAPSE
     }
 
     /**
@@ -70,14 +79,94 @@ public final class Separatism {
     }
 
     /**
-     * Fractional growth is rounded to the nearest score point. Half rounds away from zero via {@link Math#round}.
+     * Tax pressure, from 0 to 1. Zero at or below the neutral rate.
+     * Mobilisation and occupation can be added here later.
      */
-    public static int advance(int current, double happiness, double threshold, int growth, int decay, boolean capital) {
+    public static double burden(int taxRate, int neutralRate, int maxRate) {
+        if (taxRate <= neutralRate) {
+            return 0.0d;
+        }
+        int span = maxRate - neutralRate;
+        if (span <= 0) {
+            return 1.0d;
+        }
+        double value = (taxRate - (double) neutralRate) / span;
+        if (value < 0.0d) {
+            return 0.0d;
+        }
+        return Math.min(1.0d, value);
+    }
+
+    /**
+     * Days of grace still left, including today. Zero when the period has ended or was never started.
+     */
+    public static int daysLeft(Long startDay, long today, int graceDays) {
+        if (startDay == null || graceDays <= 0) {
+            return 0;
+        }
+        long end;
+        try {
+            end = Math.addExact(startDay, graceDays);
+        } catch (ArithmeticException overflow) {
+            return Integer.MAX_VALUE;
+        }
+        if (today >= end) {
+            return 0;
+        }
+        long left = end - today;
+        return left > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) left;
+    }
+
+    /**
+     * Grace wins over collapse, and collapse wins over tax, so the line explains why the score is held or rising.
+     */
+    public static Cause cause(
+            double happiness,
+            double unrestThreshold,
+            double collapseThreshold,
+            int taxRate,
+            int neutralRate,
+            int daysLeft) {
+        if (daysLeft > 0) {
+            return Cause.GRACE;
+        }
+        if (happiness < collapseThreshold) {
+            return Cause.COLLAPSE;
+        }
+        if (taxRate > neutralRate && happiness < unrestThreshold) {
+            return Cause.TAX;
+        }
+        return Cause.CALM;
+    }
+
+    /**
+     * Fractional growth is rounded to the nearest score point. Half rounds away from zero via {@link Math#round}.
+     * Collapse uses a fixed burden of 0.5 and ignores the tax burden. Grace blocks growth and still allows decay.
+     */
+    public static int step(
+            int current,
+            double happiness,
+            double unrestThreshold,
+            double collapseThreshold,
+            int growth,
+            int decay,
+            double burden,
+            boolean capital,
+            boolean grace) {
         int start = clamp(current);
-        double raw = happiness < threshold
-                ? (threshold - happiness) * Math.max(0, growth)
-                : -Math.max(0, decay);
-        int next = clamp(start + (int) Math.round(raw));
+        boolean collapse = happiness < collapseThreshold;
+        double factor = collapse ? 0.5d : Math.max(0.0d, Math.min(1.0d, burden));
+        boolean pressing = !collapse && factor > 0.0d && happiness < unrestThreshold;
+        boolean rising = (collapse || pressing) && unrestThreshold > happiness && factor > 0.0d;
+        int next;
+        if (rising && grace) {
+            next = start;
+        } else if (rising) {
+            double raw = (unrestThreshold - happiness) * Math.max(0, growth) * factor;
+            next = clamp(start + (int) Math.round(raw));
+        } else {
+            next = clamp(start - Math.max(0, decay));
+        }
         if (capital) {
             next = Math.min(next, CAPITAL_CAP);
         }

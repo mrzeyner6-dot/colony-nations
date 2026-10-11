@@ -137,7 +137,12 @@ public final class NationCityCommands {
                     Messages.plain(markKey),
                     CitizenTaxHappiness.format(MineColoniesCities.findByCity(city)),
                     nation.separatism(city),
-                    Messages.plain(SeparatismDay.stageKey(nation.separatism(city))));
+                    Messages.plain(SeparatismDay.stageKey(nation.separatism(city))),
+                    SeparatismDay.causeLine(
+                            nation,
+                            city,
+                            MineColoniesCities.findByCity(city),
+                            source.getServer().overworld().getDayTime() / com.mrzeyner.colonynations.territory.Upkeep.TICKS_PER_DAY));
         }
         return 1;
     }
@@ -169,6 +174,7 @@ public final class NationCityCommands {
         try {
             if (add) {
                 registry.addColony(nation.id(), city);
+                data.grantGrace(nation.id(), city, source.getServer().overworld().getDayTime() / com.mrzeyner.colonynations.territory.Upkeep.TICKS_PER_DAY);
             }
         } catch (NationException exception) {
             if (exception.reason() == NationException.Reason.COLONY_TAKEN) {

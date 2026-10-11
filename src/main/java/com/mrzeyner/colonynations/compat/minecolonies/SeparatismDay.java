@@ -16,8 +16,10 @@ import com.mrzeyner.colonynations.economy.Separatism;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.territory.ChunkRef;
+import com.mrzeyner.colonynations.territory.Upkeep;
 
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -35,24 +37,34 @@ public final class SeparatismDay {
             return;
         }
         double threshold = Config.UNREST_THRESHOLD.get();
+        double collapse = Config.COLLAPSE_THRESHOLD.get();
         int growth = Config.SEPARATISM_GROWTH.get();
         int decay = Config.SEPARATISM_DECAY.get();
+        int graceDays = Config.SEPARATISM_GRACE_DAYS.get();
+        int neutral = Config.TAX_NEUTRAL_RATE.get();
+        int maxTax = Config.MAX_TAX_RATE.get();
         long gameTime = server.overworld().getGameTime();
+        long today = server.overworld().getDayTime() / Upkeep.TICKS_PER_DAY;
         boolean dirty = false;
         for (Nation nation : List.copyOf(data.registry().all())) {
+            double pressure = Separatism.burden(nation.taxRate(), neutral, maxTax);
             for (CityRef city : nation.cities()) {
                 IColony colony = MineColoniesCities.findByCity(city);
                 if (colony == null) {
                     continue;
                 }
                 int before = nation.separatism(city);
-                int after = Separatism.advance(
+                int left = Separatism.daysLeft(nation.graceDay(city), today, graceDays);
+                int after = Separatism.step(
                         before,
                         colony.getOverallHappiness(),
                         threshold,
+                        collapse,
                         growth,
                         decay,
-                        city.equals(nation.capital()));
+                        pressure,
+                        city.equals(nation.capital()),
+                        left > 0);
                 if (after == before) {
                     continue;
                 }
@@ -99,6 +111,24 @@ public final class SeparatismDay {
             return 1;
         }
         return Messages.success(source, "command.colony_nations.separatism.set", label, colonyId, value);
+    }
+
+    public static Component causeLine(Nation nation, CityRef city, IColony colony, long today) {
+        int left = Separatism.daysLeft(nation.graceDay(city), today, Config.SEPARATISM_GRACE_DAYS.get());
+        double happiness = colony == null ? 10.0d : colony.getOverallHappiness();
+        Separatism.Cause cause = Separatism.cause(
+                happiness,
+                Config.UNREST_THRESHOLD.get(),
+                Config.COLLAPSE_THRESHOLD.get(),
+                nation.taxRate(),
+                Config.TAX_NEUTRAL_RATE.get(),
+                left);
+        return switch (cause) {
+            case GRACE -> Messages.plain("command.colony_nations.separatism.cause.grace", left);
+            case TAX -> Messages.plain("command.colony_nations.separatism.cause.tax");
+            case COLLAPSE -> Messages.plain("command.colony_nations.separatism.cause.collapse");
+            case CALM -> Messages.plain("command.colony_nations.separatism.cause.calm");
+        };
     }
 
     public static String stageKey(int score) {

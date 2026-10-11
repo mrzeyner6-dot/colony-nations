@@ -79,16 +79,24 @@ public final class Config {
             .defineInRange("taxHappinessPenalty", 0.70, 0.0, 10.0);
 
     public static final ModConfigSpec.DoubleValue UNREST_THRESHOLD = BUILDER
-            .comment("City happiness below this, on the 0–10 scale, raises separatism.")
+            .comment("City happiness below this, on the 0–10 scale, can raise separatism when the state is pressing or the city has collapsed.")
             .defineInRange("unrestThreshold", 5.0, 0.0, 10.0);
 
     public static final ModConfigSpec.IntValue SEPARATISM_GROWTH = BUILDER
-            .comment("Separatism added per point of happiness below unrestThreshold.")
+            .comment("Separatism added per point of happiness below unrestThreshold, multiplied by the state burden.")
             .defineInRange("separatismGrowth", 6, 0, 100);
 
     public static final ModConfigSpec.IntValue SEPARATISM_DECAY = BUILDER
-            .comment("Separatism removed each day when happiness is at or above unrestThreshold.")
+            .comment("Separatism removed each day when the state is not raising it. Grace does not block this.")
             .defineInRange("separatismDecay", 4, 0, 100);
+
+    public static final ModConfigSpec.IntValue SEPARATISM_GRACE_DAYS = BUILDER
+            .comment("Game days after a city is founded, joins, changes nation, or is bought back during which separatism does not grow.")
+            .defineInRange("separatismGraceDays", 7, 0, 3650);
+
+    public static final ModConfigSpec.DoubleValue COLLAPSE_THRESHOLD = BUILDER
+            .comment("Happiness below this raises separatism at a fixed burden of 0.5, even when the tax is not above the neutral rate. Grace still blocks that growth.")
+            .defineInRange("collapseThreshold", 2.5, 0.0, 10.0);
 
     public static final ModConfigSpec.IntValue SECESSION_JOIN_RADIUS = BUILDER
             .comment("Chebyshev chunk distance from a breaking city's claim to another nation's land. That nation is asked to take the city only when its tax is also lower. The same radius lets a nation buy a free city.")

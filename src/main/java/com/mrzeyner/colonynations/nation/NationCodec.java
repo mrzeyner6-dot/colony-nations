@@ -21,11 +21,12 @@ import com.mrzeyner.colonynations.territory.TerritoryMap;
  * {@code NationSavedData} stores these bytes inside NBT so the round trip can be tested without Minecraft.
  */
 public final class NationCodec {
-    public static final int VERSION = 5;
+    public static final int VERSION = 6;
     private static final int VERSION_WITH_NATIONS_ONLY = 2;
     private static final int VERSION_WITH_TERRITORY = 3;
     private static final int VERSION_WITH_TAX = 4;
     private static final int VERSION_WITH_SEPARATISM = 5;
+    private static final int VERSION_WITH_GRACE = 6;
 
     static final Logger LOGGER = Logger.getLogger(NationCodec.class.getName());
 
@@ -81,6 +82,13 @@ public final class NationCodec {
      */
     static byte[] writeVersion4(NationRegistry registry, TerritoryMap territory) {
         return writeAt(VERSION_WITH_TAX, registry, territory);
+    }
+
+    /**
+     * Version 5 layout: per-city separatism, no grace day.
+     */
+    static byte[] writeVersion5(NationRegistry registry, TerritoryMap territory) {
+        return writeAt(VERSION_WITH_SEPARATISM, registry, territory);
     }
 
     private static byte[] writeAt(int version, NationRegistry registry, TerritoryMap territory) {
@@ -186,6 +194,20 @@ public final class NationCodec {
                 out.writeInt(nation.separatism(city));
             }
         }
+        if (version >= VERSION_WITH_GRACE) {
+            List<CityRef> grace = new ArrayList<>();
+            for (CityRef city : nation.graceDays().keySet()) {
+                if (nation.graceDay(city) != null) {
+                    grace.add(city);
+                }
+            }
+            grace.sort(CITY_ORDER);
+            out.writeInt(grace.size());
+            for (CityRef city : grace) {
+                writeCity(out, city);
+                out.writeLong(nation.graceDay(city));
+            }
+        }
     }
 
     private static Nation readNation(DataInputStream in, int version) throws IOException {
@@ -216,6 +238,13 @@ public final class NationCodec {
                 separatism.put(readCity(in), in.readInt());
             }
         }
+        Map<CityRef, Long> graceDays = new LinkedHashMap<>();
+        if (version >= VERSION_WITH_GRACE) {
+            int stamped = in.readInt();
+            for (int i = 0; i < stamped; i++) {
+                graceDays.put(readCity(in), in.readLong());
+            }
+        }
         return new Nation(
                 id,
                 name,
@@ -227,7 +256,8 @@ public final class NationCodec {
                 createdGameTime,
                 taxRate,
                 lastTaxChangeDay,
-                separatism);
+                separatism,
+                graceDays);
     }
 
     private static void writeCity(DataOutputStream out, CityRef city) throws IOException {

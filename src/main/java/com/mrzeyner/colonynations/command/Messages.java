@@ -88,8 +88,8 @@ public final class Messages {
     /**
      * A nested translation that keeps the surrounding line's color.
      */
-    public static Component plain(String key) {
-        return Component.translatable(key);
+    public static Component plain(String key, Object... args) {
+        return Component.translatable(key, args);
     }
 
     /**

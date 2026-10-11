@@ -48,6 +48,7 @@ public final class NationSavedData extends SavedData {
     private final Map<CityRef, Long> freeJoinDays = new HashMap<>();
     private final byte[] preservedPayload;
     private final int unreadVersion;
+    private boolean legacyGraceApplied;
     private Long lastUpkeepDay;
 
     public NationSavedData() {
@@ -196,6 +197,26 @@ public final class NationSavedData extends SavedData {
 
     public int unreadVersion() {
         return unreadVersion;
+    }
+
+    public void grantGrace(UUID nationId, CityRef city, long day) {
+        if (registry.grantGrace(nationId, city, day)) {
+            setDirty();
+        }
+    }
+
+    /**
+     * Saves from before grace days stamp every current city with {@code today}. Runs once per load.
+     */
+    public void applyLegacyGrace(long today) {
+        if (legacyGraceApplied || unreadable() || unreadVersion >= NationCodec.VERSION) {
+            legacyGraceApplied = true;
+            return;
+        }
+        legacyGraceApplied = true;
+        if (registry.grantMissingGrace(today)) {
+            setDirty();
+        }
     }
 
     /**

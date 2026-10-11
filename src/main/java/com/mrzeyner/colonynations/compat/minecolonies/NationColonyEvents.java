@@ -50,6 +50,10 @@ public final class NationColonyEvents {
         try {
             CityRef city = MineColoniesCities.cityRef(colony);
             data.registry().addColony(nation.id(), city);
+            data.grantGrace(
+                    nation.id(),
+                    city,
+                    server.overworld().getDayTime() / com.mrzeyner.colonynations.territory.Upkeep.TICKS_PER_DAY);
             data.setDirty();
             CityTerritory.onCityJoined(server, data, colony, server.overworld().getGameTime());
             CitizenTaxHappiness.apply(data.registry().byId(nation.id()).orElse(nation));

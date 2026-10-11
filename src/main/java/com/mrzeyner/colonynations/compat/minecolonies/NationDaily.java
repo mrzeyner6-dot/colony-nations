@@ -36,6 +36,7 @@ public final class NationDaily {
             CitizenTaxHappiness.refreshAll(server);
         }
         NationSavedData data = NationSavedData.get(server);
+        data.applyLegacyGrace(server.overworld().getDayTime() / Upkeep.TICKS_PER_DAY);
         Upkeep.Due due = Upkeep.due(data.lastUpkeepDay(), server.overworld().getDayTime());
         if (data.lastUpkeepDay().isEmpty() || due.charge()) {
             data.setLastUpkeepDay(due.recordedDay());

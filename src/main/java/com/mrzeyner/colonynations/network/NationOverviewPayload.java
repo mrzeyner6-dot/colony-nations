@@ -31,7 +31,9 @@ public record NationOverviewPayload(boolean open, Overview overview) implements 
             boolean capital,
             int citizens,
             int happinessMilli,
-            int separatism) {
+            int separatism,
+            int cause,
+            int graceDays) {
         public CityLine {
             dimension = MenuLimits.clip(dimension, MenuLimits.DIMENSION);
             name = MenuLimits.clip(name, MenuLimits.LABEL);
@@ -149,6 +151,8 @@ public record NationOverviewPayload(boolean open, Overview overview) implements 
             buf.writeVarInt(city.citizens);
             buf.writeVarInt(city.happinessMilli);
             buf.writeVarInt(city.separatism);
+            buf.writeByte(city.cause);
+            buf.writeVarInt(city.graceDays);
         }
         buf.writeVarInt(view.offers.size());
         for (OfferLine offer : view.offers) {
@@ -217,6 +221,8 @@ public record NationOverviewPayload(boolean open, Overview overview) implements 
                     buf.readBoolean(),
                     buf.readVarInt(),
                     buf.readVarInt(),
+                    buf.readVarInt(),
+                    buf.readByte(),
                     buf.readVarInt()));
         }
         return cities;

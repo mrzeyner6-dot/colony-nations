@@ -17,6 +17,7 @@ import com.mrzeyner.colonynations.data.FreeCity;
 import com.mrzeyner.colonynations.data.SecessionOffer;
 import com.mrzeyner.colonynations.economy.FreeCityBuy;
 import com.mrzeyner.colonynations.economy.PopulationTax;
+import com.mrzeyner.colonynations.economy.Separatism;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.network.NationActionPayload;
@@ -115,7 +116,7 @@ public final class NationMenuServer {
         long today = player.server.overworld().getDayTime() / Upkeep.TICKS_PER_DAY;
         boolean canTax = PopulationTax.canChange(nation.lastTaxChangeDay(), today);
         long ready = nation.lastTaxChangeDay() == null ? today : nation.lastTaxChangeDay() + 1L;
-        List<NationOverviewPayload.CityLine> cities = cities(nation);
+        List<NationOverviewPayload.CityLine> cities = cities(nation, today);
         int adults = 0;
         for (NationOverviewPayload.CityLine city : cities) {
             IColony colony = MineColoniesCities.findByCity(new CityRef(city.dimension(), city.colonyId()));
@@ -150,12 +151,22 @@ public final class NationMenuServer {
                 frees(player, data, nation, gameTime));
     }
 
-    private static List<NationOverviewPayload.CityLine> cities(Nation nation) {
+    private static List<NationOverviewPayload.CityLine> cities(Nation nation, long today) {
         List<CityRef> refs = new ArrayList<>(nation.cities());
         refs.sort(Comparator.comparing(CityRef::dimension).thenComparingInt(CityRef::colonyId));
         List<NationOverviewPayload.CityLine> lines = new ArrayList<>();
+        int graceDays = Config.SEPARATISM_GRACE_DAYS.get();
         for (CityRef city : refs) {
             IColony colony = MineColoniesCities.findByCity(city);
+            int left = Separatism.daysLeft(nation.graceDay(city), today, graceDays);
+            double happiness = colony == null ? 10.0d : colony.getOverallHappiness();
+            Separatism.Cause cause = Separatism.cause(
+                    happiness,
+                    Config.UNREST_THRESHOLD.get(),
+                    Config.COLLAPSE_THRESHOLD.get(),
+                    nation.taxRate(),
+                    Config.TAX_NEUTRAL_RATE.get(),
+                    left);
             lines.add(new NationOverviewPayload.CityLine(
                     city.dimension(),
                     city.colonyId(),
@@ -163,7 +174,9 @@ public final class NationMenuServer {
                     city.equals(nation.capital()),
                     citizens(colony),
                     happinessMilli(colony),
-                    nation.separatism(city)));
+                    nation.separatism(city),
+                    cause.ordinal(),
+                    left));
         }
         return lines;
     }

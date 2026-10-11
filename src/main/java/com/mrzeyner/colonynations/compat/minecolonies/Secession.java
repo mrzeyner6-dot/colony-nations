@@ -272,6 +272,7 @@ public final class Secession {
         String fromName = from.name();
         data.registry().removeColony(from.id(), city);
         data.registry().addColony(to.id(), city);
+        data.grantGrace(to.id(), city, server.overworld().getDayTime() / com.mrzeyner.colonynations.territory.Upkeep.TICKS_PER_DAY);
         for (ChunkRef chunk : claim) {
             data.territory().release(chunk);
         }
