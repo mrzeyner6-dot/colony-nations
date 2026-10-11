@@ -1,6 +1,7 @@
 package com.mrzeyner.colonynations.compat.minecolonies;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -26,8 +27,9 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * Buys a free city into the owner's nation. The founding ring is not annexed.
- * {@code /nation admin city give} uses the same join without the price, range or cooldown.
+ * Buys a free city into the owner's nation and annexes the same free founding ring as founding.
+ * Only unowned chunks are taken. {@code /nation admin city give} uses the same join without
+ * the price, range or cooldown. Secession does not come through here.
  */
 public final class FreeCityJoin {
     private FreeCityJoin() {
@@ -165,6 +167,7 @@ public final class FreeCityJoin {
             data.setFreeJoinDay(free.city(), today);
         }
         CityTerritory.releaseClaim(data, claim);
+        List<ChunkRef> ring = CityTerritory.annexRing(data, colony, joined, claim);
         data.removeFreeCity(free.city());
         colony.getPermissions().setOwner(owner);
         CitizenTaxHappiness.clear(colony);
@@ -178,6 +181,7 @@ public final class FreeCityJoin {
                 colony.getID(),
                 name,
                 Separatism.mapBand(joined.separatism(free.city())));
+        TerritorySync.broadcastState(server, data, joined, ring, gameTime);
         TerritorySync.forgetNation(server, FreeCity.mapId(free.city()));
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             Messages.event(player, "command.colony_nations.freecity.joined", joined.name(), name);

@@ -1,6 +1,7 @@
 package com.mrzeyner.colonynations.compat.minecolonies;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -56,15 +57,20 @@ public final class CityTerritory {
         return changed;
     }
 
-    private static List<ChunkRef> annexRing(NationSavedData data, IColony colony, Nation nation, Set<ChunkRef> claim) {
+    /**
+     * Annexes {@code foundingRingChunks} around {@code claim}. Skips state land of any nation
+     * and any colony or free-city claim. Founding and free-city buy share this path.
+     */
+    static List<ChunkRef> annexRing(NationSavedData data, IColony colony, Nation nation, Set<ChunkRef> claim) {
+        Set<ChunkRef> ring = FoundingRing.around(claim, Config.FOUNDING_RING_CHUNKS.get());
+        Set<ChunkRef> occupied = new HashSet<>();
+        for (ChunkRef chunk : ring) {
+            if (data.territory().owner(chunk).isPresent() || ColonyClaims.isCityLand(colony.getDimension(), chunk)) {
+                occupied.add(chunk);
+            }
+        }
         List<ChunkRef> claimed = new ArrayList<>();
-        for (ChunkRef chunk : FoundingRing.around(claim, Config.FOUNDING_RING_CHUNKS.get())) {
-            if (data.territory().owner(chunk).isPresent()) {
-                continue;
-            }
-            if (ColonyClaims.isCityLand(colony.getDimension(), chunk)) {
-                continue;
-            }
+        for (ChunkRef chunk : FoundingRing.unowned(ring, occupied)) {
             data.territory().claim(chunk, nation.id());
             claimed.add(chunk);
         }
