@@ -27,6 +27,9 @@ public final class TradeTerminalScreen extends AbstractContainerScreen<TradeTerm
     private static final int PANEL = 0xF0181028;
     private static final int EDGE = 0xFFB07CFF;
     private static final int SLOT = 0xFF2A2040;
+    private static final int SLOT_BORDER = 0xFF0C0814;
+    private static final int SLOT_SHADOW = 0xFF120C1E;
+    private static final int SLOT_LIGHT = 0xFF6A5A96;
     private static final int TEXT = 0xFFD8D2E8;
     private static final int VALUE = 0xFFE0C3FF;
 
@@ -83,8 +86,21 @@ public final class TradeTerminalScreen extends AbstractContainerScreen<TradeTerm
         graphics.fill(leftPos - 1, topPos - 1, leftPos + imageWidth + 1, topPos + imageHeight + 1, EDGE);
         graphics.fill(leftPos, topPos, leftPos + imageWidth, topPos + imageHeight, PANEL);
         for (Slot slot : menu.slots) {
-            graphics.fill(leftPos + slot.x - 1, topPos + slot.y - 1, leftPos + slot.x + 17, topPos + slot.y + 17, SLOT);
+            slotFrame(graphics, leftPos + slot.x, topPos + slot.y);
         }
+    }
+
+    /**
+     * Vanilla-style inset slot: a dark outline, a shadow on the top and left inner edges and a light
+     * line on the bottom and right, so neighbouring slots read as separate cells instead of one panel.
+     */
+    private static void slotFrame(GuiGraphics graphics, int x, int y) {
+        graphics.fill(x - 1, y - 1, x + 17, y + 17, SLOT_BORDER);
+        graphics.fill(x, y, x + 16, y + 16, SLOT);
+        graphics.fill(x, y, x + 16, y + 1, SLOT_SHADOW);
+        graphics.fill(x, y, x + 1, y + 16, SLOT_SHADOW);
+        graphics.fill(x, y + 15, x + 16, y + 16, SLOT_LIGHT);
+        graphics.fill(x + 15, y, x + 16, y + 16, SLOT_LIGHT);
     }
 
     @Override
