@@ -44,10 +44,62 @@ public final class NationCityCommands {
         if (hit == null) {
             return 0;
         }
+        return makeCapital(source, hit.city().dimension(), hit.colonyId());
+    }
+
+    public static int makeCapital(CommandSourceStack source, String dimension, int colonyId) throws CommandSyntaxException {
+        if (!(source.getEntity() instanceof ServerPlayer)) {
+            return Messages.error(source, "command.colony_nations.players_only");
+        }
         NationSavedData data = NationSavedData.get(source.getServer());
-        data.registry().setCapital(hit.nation().id(), hit.city());
+        if (data.refuseChanges(source)) {
+            return 0;
+        }
+        Held held = hold(source, dimension, colonyId);
+        if (held == null) {
+            return 0;
+        }
+        data.registry().setCapital(held.nation().id(), held.city());
         data.setDirty();
-        return Messages.success(source, "command.colony_nations.capital.success", hit.nation().name(), hit.label(), hit.colonyId());
+        return Messages.success(
+                source,
+                "command.colony_nations.capital.success",
+                held.nation().name(),
+                held.label(),
+                held.city().colonyId());
+    }
+
+    public static int removeCity(CommandSourceStack source, String dimension, int colonyId) throws CommandSyntaxException {
+        if (!(source.getEntity() instanceof ServerPlayer)) {
+            return Messages.error(source, "command.colony_nations.players_only");
+        }
+        NationSavedData data = NationSavedData.get(source.getServer());
+        if (data.refuseChanges(source)) {
+            return 0;
+        }
+        Held held = hold(source, dimension, colonyId);
+        if (held == null) {
+            return 0;
+        }
+        IColony colony = held.colony();
+        if (colony == null) {
+            return Messages.error(source, "command.colony_nations.city.unknown", colonyId);
+        }
+        try {
+            data.registry().removeColony(held.nation().id(), held.city());
+        } catch (NationException exception) {
+            return Messages.error(source, "command.colony_nations.city.unknown", colonyId);
+        }
+        data.setDirty();
+        CitizenTaxHappiness.clear(colony);
+        Secession.dropOffer(data, held.city());
+        TerritorySync.onCityLeft(source.getServer(), data, colony, source.getLevel().getGameTime());
+        return Messages.success(
+                source,
+                "command.colony_nations.city.removed",
+                colony.getName(),
+                held.city().colonyId(),
+                held.nation().name());
     }
 
     public static int list(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -100,6 +152,9 @@ public final class NationCityCommands {
         if (hit == null) {
             return 0;
         }
+        if (!add) {
+            return removeCity(source, hit.city().dimension(), hit.colonyId());
+        }
         IColony colony = hit.colony();
         if (colony == null) {
             return Messages.error(source, "command.colony_nations.city.unknown", hit.colonyId());
@@ -114,10 +169,6 @@ public final class NationCityCommands {
         try {
             if (add) {
                 registry.addColony(nation.id(), city);
-            } else if (!nation.cities().contains(city)) {
-                return Messages.error(source, "command.colony_nations.capital.not_in_nation", hit.colonyId(), nation.name());
-            } else {
-                registry.removeColony(nation.id(), city);
             }
         } catch (NationException exception) {
             if (exception.reason() == NationException.Reason.COLONY_TAKEN) {
@@ -126,15 +177,37 @@ public final class NationCityCommands {
             return Messages.error(source, "command.colony_nations.city.unknown", hit.colonyId());
         }
         data.setDirty();
-        if (add) {
-            CityTerritory.onCityJoined(source.getServer(), data, colony, source.getLevel().getGameTime());
-            CitizenTaxHappiness.apply(data.registry().byOwner(player.getUUID()).orElse(nation));
-            return Messages.event(source, "command.colony_nations.city.added", colony.getName(), hit.colonyId(), nation.name());
+        CityTerritory.onCityJoined(source.getServer(), data, colony, source.getLevel().getGameTime());
+        CitizenTaxHappiness.apply(data.registry().byOwner(player.getUUID()).orElse(nation));
+        return Messages.event(source, "command.colony_nations.city.added", colony.getName(), hit.colonyId(), nation.name());
+    }
+
+    private static Held hold(CommandSourceStack source, String dimension, int colonyId) throws CommandSyntaxException {
+        ServerPlayer player = player(source);
+        if (player == null) {
+            Messages.error(source, "command.colony_nations.players_only");
+            return null;
         }
-        CitizenTaxHappiness.clear(colony);
-        Secession.dropOffer(data, city);
-        TerritorySync.onCityLeft(source.getServer(), data, colony, source.getLevel().getGameTime());
-        return Messages.success(source, "command.colony_nations.city.removed", colony.getName(), hit.colonyId(), nation.name());
+        Nation nation = NationSavedData.get(source.getServer()).registry().byOwner(player.getUUID()).orElse(null);
+        if (nation == null) {
+            Messages.error(source, "command.colony_nations.info.none");
+            return null;
+        }
+        CityRef city = null;
+        for (CityRef candidate : nation.cities()) {
+            if (candidate.colonyId() == colonyId && candidate.dimension().equals(dimension)) {
+                city = candidate;
+                break;
+            }
+        }
+        if (city == null) {
+            Messages.error(source, "command.colony_nations.capital.not_in_nation", colonyId, nation.name());
+            return null;
+        }
+        return new Held(nation, city, MineColoniesCities.findByCity(city), colonyLabel(city));
+    }
+
+    private record Held(Nation nation, CityRef city, IColony colony, String label) {
     }
 
     private static String colonyLabel(CityRef city) {

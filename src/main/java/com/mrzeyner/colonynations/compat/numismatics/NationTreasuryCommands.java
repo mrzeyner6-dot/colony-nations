@@ -29,15 +29,15 @@ public final class NationTreasuryCommands {
     public static LiteralArgumentBuilder<CommandSourceStack> branch() {
         return Commands.literal("treasury")
                 .executes(NationTreasuryCommands::balance)
-                .then(Commands.literal("deposit").executes(NationTreasuryCommands::deposit))
+                .then(Commands.literal("deposit").executes(ctx -> deposit(ctx.getSource())))
                 .then(Commands.literal("withdraw")
                         .then(Commands.argument("amount", LongArgumentType.longArg(1))
-                                .executes(NationTreasuryCommands::withdraw)));
+                                .executes(ctx -> withdraw(ctx.getSource(), LongArgumentType.getLong(ctx, "amount")))));
     }
 
     private static int balance(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
-        Nation nation = ownNation(source, saved(ctx).registry());
+        Nation nation = ownNation(source, saved(source).registry());
         if (nation == null) {
             return 0;
         }
@@ -47,9 +47,8 @@ public final class NationTreasuryCommands {
         return 1;
     }
 
-    private static int deposit(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
-        CommandSourceStack source = ctx.getSource();
-        NationSavedData data = saved(ctx);
+    public static int deposit(CommandSourceStack source) throws CommandSyntaxException {
+        NationSavedData data = saved(source);
         if (data.refuseChanges(source)) {
             return 0;
         }
@@ -75,9 +74,8 @@ public final class NationTreasuryCommands {
         return Messages.success(source, "command.colony_nations.treasury.deposit.success", value, nation.name(), updated);
     }
 
-    private static int withdraw(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
-        CommandSourceStack source = ctx.getSource();
-        NationSavedData data = saved(ctx);
+    public static int depositAll(CommandSourceStack source) throws CommandSyntaxException {
+        NationSavedData data = saved(source);
         if (data.refuseChanges(source)) {
             return 0;
         }
@@ -85,7 +83,52 @@ public final class NationTreasuryCommands {
         if (nation == null) {
             return 0;
         }
-        long amount = LongArgumentType.getLong(ctx, "amount");
+        ServerPlayer player = player(source);
+        List<ItemStack> coins = coinStacks(player);
+        if (coins.isEmpty()) {
+            return Messages.error(source, "command.colony_nations.treasury.deposit.none");
+        }
+        long accepted = 0L;
+        List<ItemStack> taken = new ArrayList<>();
+        for (ItemStack stack : coins) {
+            long value = NumismaticsCoins.stackSpurs(stack);
+            if (value <= 0L) {
+                continue;
+            }
+            long next;
+            try {
+                next = Math.addExact(accepted, value);
+                Math.addExact(nation.treasury(), next);
+            } catch (ArithmeticException overflow) {
+                break;
+            }
+            accepted = next;
+            taken.add(stack);
+        }
+        if (taken.isEmpty()) {
+            return Messages.error(source, "command.colony_nations.treasury.overflow");
+        }
+        for (ItemStack stack : taken) {
+            stack.setCount(0);
+        }
+        long updated = nation.treasury() + accepted;
+        data.registry().setTreasury(nation.id(), updated);
+        data.setDirty();
+        return Messages.success(source, "command.colony_nations.treasury.deposit.all", accepted, nation.name(), updated);
+    }
+
+    public static int withdraw(CommandSourceStack source, long amount) throws CommandSyntaxException {
+        NationSavedData data = saved(source);
+        if (data.refuseChanges(source)) {
+            return 0;
+        }
+        Nation nation = ownNation(source, data.registry());
+        if (nation == null) {
+            return 0;
+        }
+        if (amount < 1L) {
+            return Messages.error(source, "command.colony_nations.treasury.withdraw.amount");
+        }
         if (amount > nation.treasury()) {
             return Messages.error(source, "command.colony_nations.treasury.withdraw.insufficient", nation.name(), nation.treasury());
         }
@@ -132,6 +175,22 @@ public final class NationTreasuryCommands {
         return slots;
     }
 
+    private static List<ItemStack> coinStacks(ServerPlayer player) {
+        Inventory inventory = player.getInventory();
+        List<ItemStack> coins = new ArrayList<>();
+        for (ItemStack stack : inventory.items) {
+            if (NumismaticsCoins.isCoin(stack)) {
+                coins.add(stack);
+            }
+        }
+        for (ItemStack stack : inventory.offhand) {
+            if (NumismaticsCoins.isCoin(stack)) {
+                coins.add(stack);
+            }
+        }
+        return coins;
+    }
+
     private static Nation ownNation(CommandSourceStack source, NationRegistry registry) throws CommandSyntaxException {
         ServerPlayer player = player(source);
         if (player == null) {
@@ -156,7 +215,7 @@ public final class NationTreasuryCommands {
         return source.getPlayerOrException();
     }
 
-    private static NationSavedData saved(CommandContext<CommandSourceStack> ctx) {
-        return NationSavedData.get(ctx.getSource().getServer());
+    private static NationSavedData saved(CommandSourceStack source) {
+        return NationSavedData.get(source.getServer());
     }
 }

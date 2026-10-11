@@ -187,37 +187,64 @@ public final class Secession {
         return false;
     }
 
-    private static int answer(CommandContext<CommandSourceStack> ctx, String raw, boolean accept) throws CommandSyntaxException {
-        CommandSourceStack source = ctx.getSource();
+    public static int respond(CommandSourceStack source, String dimension, int colonyId, boolean accept) throws CommandSyntaxException {
         ServerPlayer player = source.getEntity() instanceof ServerPlayer serverPlayer ? serverPlayer : null;
         if (player == null) {
+            return Messages.error(source, "command.colony_nations.players_only");
+        }
+        NationSavedData data = NationSavedData.get(source.getServer());
+        if (data.refuseChanges(source)) {
+            return 0;
+        }
+        Nation mine = data.registry().byOwner(player.getUUID()).orElse(null);
+        if (mine == null) {
+            return Messages.error(source, "command.colony_nations.info.none");
+        }
+        CityRef city = new CityRef(dimension, colonyId);
+        SecessionOffer offer = null;
+        for (SecessionOffer candidate : data.offers()) {
+            if (candidate.city().equals(city) && mine.id().equals(candidate.toNation())) {
+                offer = candidate;
+                break;
+            }
+        }
+        if (offer == null) {
+            return Messages.error(source, "command.colony_nations.secession.no_offer", colonyId);
+        }
+        return finishOffer(source, player, data, mine, offer, accept);
+    }
+
+    private static int answer(CommandContext<CommandSourceStack> ctx, String raw, boolean accept) throws CommandSyntaxException {
+        CommandSourceStack source = ctx.getSource();
+        if (!(source.getEntity() instanceof ServerPlayer)) {
             return Messages.error(source, "command.colony_nations.players_only");
         }
         CityArguments.Hit hit = CityArguments.resolve(source, raw, CityArguments.Pool.OFFER);
         if (hit == null) {
             return 0;
         }
-        NationSavedData data = NationSavedData.get(source.getServer());
-        Nation mine = hit.nation();
-        SecessionOffer offer = null;
-        for (SecessionOffer candidate : data.offers()) {
-            if (candidate.city().equals(hit.city()) && mine.id().equals(candidate.toNation())) {
-                offer = candidate;
-                break;
-            }
-        }
+        return respond(source, hit.city().dimension(), hit.colonyId(), accept);
+    }
+
+    private static int finishOffer(
+            CommandSourceStack source,
+            ServerPlayer player,
+            NationSavedData data,
+            Nation mine,
+            SecessionOffer offer,
+            boolean accept) {
         if (offer == null) {
-            return Messages.error(source, "command.colony_nations.secession.no_offer", hit.colonyId());
+            return Messages.error(source, "command.colony_nations.secession.no_offer", 0);
         }
         Nation from = data.registry().byId(offer.fromNation()).orElse(null);
         if (from == null || !from.cities().contains(offer.city())) {
             data.takeOffer(offer.city());
-            return Messages.error(source, "command.colony_nations.city.unknown", hit.colonyId());
+            return Messages.error(source, "command.colony_nations.city.unknown", offer.city().colonyId());
         }
         IColony colony = MineColoniesCities.findByCity(offer.city());
         if (colony == null) {
             data.takeOffer(offer.city());
-            return Messages.error(source, "command.colony_nations.city.unknown", hit.colonyId());
+            return Messages.error(source, "command.colony_nations.city.unknown", offer.city().colonyId());
         }
         data.takeOffer(offer.city());
         if (accept) {

@@ -1,8 +1,10 @@
 package com.mrzeyner.colonynations.data;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.UUID;
 
 import com.mrzeyner.colonynations.ColonyNations;
@@ -31,12 +33,14 @@ public final class NationSavedData extends SavedData {
     private static final String LAST_UPKEEP_DAY = "LastUpkeepDay";
     private static final String FREE_CITIES = "FreeCities";
     private static final String OFFERS = "Offers";
+    private static final String MENU_HINTS = "MenuHints";
 
     private final NationRegistry registry;
     private final TerritoryMap territory;
     private final List<PendingNotice> notices = new ArrayList<>();
     private final List<FreeCity> freeCities = new ArrayList<>();
     private final List<SecessionOffer> offers = new ArrayList<>();
+    private final Set<UUID> menuHints = new HashSet<>();
     private final byte[] preservedPayload;
     private final int unreadVersion;
     private Long lastUpkeepDay;
@@ -91,6 +95,17 @@ public final class NationSavedData extends SavedData {
 
     public List<SecessionOffer> offers() {
         return List.copyOf(offers);
+    }
+
+    /**
+     * @return true the first time this player should be told about the nation menu
+     */
+    public boolean claimMenuHint(UUID player) {
+        if (player == null || !menuHints.add(player)) {
+            return false;
+        }
+        setDirty();
+        return true;
     }
 
     public void addOffer(SecessionOffer offer) {
@@ -187,6 +202,7 @@ public final class NationSavedData extends SavedData {
         data.notices.addAll(readNotices(tag));
         data.freeCities.addAll(readFreeCities(tag));
         data.offers.addAll(readOffers(tag));
+        data.menuHints.addAll(readMenuHints(tag));
         if (tag.contains(LAST_UPKEEP_DAY)) {
             data.lastUpkeepDay = tag.getLong(LAST_UPKEEP_DAY);
         }
@@ -200,6 +216,7 @@ public final class NationSavedData extends SavedData {
         tag.put(NOTICES, writeNotices());
         tag.put(FREE_CITIES, writeFreeCities());
         tag.put(OFFERS, writeOffers());
+        tag.put(MENU_HINTS, writeMenuHints());
         if (lastUpkeepDay != null) {
             tag.putLong(LAST_UPKEEP_DAY, lastUpkeepDay);
         }
@@ -285,6 +302,27 @@ public final class NationSavedData extends SavedData {
             list.add(tag);
         }
         return list;
+    }
+
+    private ListTag writeMenuHints() {
+        ListTag list = new ListTag();
+        for (UUID player : menuHints) {
+            list.add(StringTag.valueOf(player.toString()));
+        }
+        return list;
+    }
+
+    private static Set<UUID> readMenuHints(CompoundTag tag) {
+        Set<UUID> hints = new HashSet<>();
+        ListTag list = tag.getList(MENU_HINTS, Tag.TAG_STRING);
+        for (Tag entry : list) {
+            try {
+                hints.add(UUID.fromString(entry.getAsString()));
+            } catch (IllegalArgumentException ignored) {
+                // Skip a damaged id. The player will see the hint once.
+            }
+        }
+        return hints;
     }
 
     private static List<SecessionOffer> readOffers(CompoundTag tag) {

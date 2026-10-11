@@ -5,7 +5,6 @@ import java.util.Comparator;
 import java.util.List;
 
 import com.minecolonies.api.colony.IColony;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
@@ -53,8 +52,7 @@ public final class NationTaxCommands {
         return 1;
     }
 
-    public static int set(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
-        CommandSourceStack source = ctx.getSource();
+    public static int setRate(CommandSourceStack source, int rate) throws CommandSyntaxException {
         NationSavedData data = NationSavedData.get(source.getServer());
         if (data.refuseChanges(source)) {
             return 0;
@@ -68,8 +66,7 @@ public final class NationTaxCommands {
             return Messages.error(source, "command.colony_nations.info.none");
         }
         int max = Config.MAX_TAX_RATE.get();
-        int rate = IntegerArgumentType.getInteger(ctx, "rate");
-        if (rate > max) {
+        if (rate < 0 || rate > max) {
             return Messages.error(source, "command.colony_nations.tax.range", max);
         }
         long today = source.getServer().overworld().getDayTime() / Upkeep.TICKS_PER_DAY;

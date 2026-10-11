@@ -55,6 +55,9 @@ public final class NationUpkeep {
                 Messages.info(player.createCommandSourceStack(), notice.key(), args);
             }
         }
+        if (data.claimMenuHint(player.getUUID())) {
+            Messages.info(player.createCommandSourceStack(), "command.colony_nations.menu.hint");
+        }
     }
 
     public static int runCommand(CommandContext<CommandSourceStack> ctx) {

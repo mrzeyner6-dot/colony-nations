@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -14,23 +13,20 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 
 import com.mrzeyner.colonynations.ColonyNations;
-import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.compat.minecolonies.CityArguments;
 import com.mrzeyner.colonynations.compat.minecolonies.CitizenTaxHappiness;
-import com.mrzeyner.colonynations.compat.minecolonies.MineColoniesCities;
 import com.mrzeyner.colonynations.compat.minecolonies.NationCityCommands;
+import com.mrzeyner.colonynations.compat.minecolonies.NationMenuServer;
 import com.mrzeyner.colonynations.compat.minecolonies.NationDaily;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTaxCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTerritoryCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationUpkeep;
 import com.mrzeyner.colonynations.compat.minecolonies.Secession;
 import com.mrzeyner.colonynations.compat.minecolonies.SeparatismDay;
-import com.mrzeyner.colonynations.compat.minecolonies.TerritorySync;
 import com.mrzeyner.colonynations.compat.numismatics.NationTreasuryCommands;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
-import com.mrzeyner.colonynations.nation.NationException;
 import com.mrzeyner.colonynations.nation.NationRegistry;
 
 import net.minecraft.commands.CommandSourceStack;
@@ -43,7 +39,6 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 @EventBusSubscriber(modid = ColonyNations.MOD_ID)
 public final class NationCommands {
     private static final DisbandConfirmations DISBANDS = new DisbandConfirmations();
-    private static final long TICKS_PER_SECOND = 20L;
 
     private NationCommands() {
     }
@@ -57,14 +52,18 @@ public final class NationCommands {
         dispatcher.register(Commands.literal("nation")
                 .then(Commands.literal("create")
                         .then(Commands.argument("name", StringArgumentType.string())
-                                .executes(NationCommands::create)))
+                                .executes(ctx -> NationOperations.create(
+                                        ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
                 .then(Commands.literal("disband").executes(ctx -> disband(ctx, null)))
                 .then(Commands.literal("rename")
                         .then(Commands.argument("name", StringArgumentType.string())
-                                .executes(ctx -> rename(ctx, null, StringArgumentType.getString(ctx, "name")))))
+                                .executes(ctx -> NationOperations.rename(
+                                        ctx.getSource(), null, StringArgumentType.getString(ctx, "name")))))
                 .then(Commands.literal("color")
                         .then(Commands.argument("color", StringArgumentType.greedyString())
-                                .executes(ctx -> color(ctx, null, StringArgumentType.getString(ctx, "color")))))
+                                .executes(ctx -> NationOperations.color(
+                                        ctx.getSource(), null, StringArgumentType.getString(ctx, "color")))))
+                .then(Commands.literal("menu").executes(ctx -> NationMenuServer.open(ctx.getSource())))
                 .then(Commands.literal("info")
                         .executes(ctx -> info(ctx, null))
                         .then(Commands.argument("name", StringArgumentType.string())
@@ -88,8 +87,8 @@ public final class NationCommands {
                                 .suggests((ctx, builder) -> CityArguments.suggest(ctx.getSource(), builder, CityArguments.Pool.NATION))
                                 .executes(ctx -> NationCityCommands.capital(ctx, StringArgumentType.getString(ctx, "city")))))
                 .then(NationTreasuryCommands.branch())
-                .then(Commands.literal("annex").executes(NationTerritoryCommands::annex))
-                .then(Commands.literal("unannex").executes(NationTerritoryCommands::unannex))
+                .then(Commands.literal("annex").executes(ctx -> NationOperations.annex(ctx.getSource())))
+                .then(Commands.literal("unannex").executes(ctx -> NationOperations.unannex(ctx.getSource())))
                 .then(Commands.literal("territory").executes(NationTerritoryCommands::territory))
                 .then(Commands.literal("accept-city")
                         .executes(ctx -> Secession.accept(ctx, null))
@@ -105,7 +104,8 @@ public final class NationCommands {
                         .executes(NationTaxCommands::show)
                         .then(Commands.literal("set")
                                 .then(Commands.argument("rate", IntegerArgumentType.integer(0))
-                                        .executes(NationTaxCommands::set))))
+                                        .executes(ctx -> NationOperations.setTax(
+                                                ctx.getSource(), IntegerArgumentType.getInteger(ctx, "rate"))))))
                 .then(Commands.literal("admin")
                         .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("name", StringArgumentType.string())
@@ -113,14 +113,14 @@ public final class NationCommands {
                                         .executes(ctx -> disband(ctx, StringArgumentType.getString(ctx, "name"))))
                                 .then(Commands.literal("rename")
                                         .then(Commands.argument("newName", StringArgumentType.string())
-                                                .executes(ctx -> rename(
-                                                        ctx,
+                                                .executes(ctx -> NationOperations.rename(
+                                                        ctx.getSource(),
                                                         StringArgumentType.getString(ctx, "name"),
                                                         StringArgumentType.getString(ctx, "newName")))))
                                 .then(Commands.literal("color")
                                         .then(Commands.argument("color", StringArgumentType.greedyString())
-                                                .executes(ctx -> color(
-                                                        ctx,
+                                                .executes(ctx -> NationOperations.color(
+                                                        ctx.getSource(),
                                                         StringArgumentType.getString(ctx, "name"),
                                                         StringArgumentType.getString(ctx, "color"))))))
                         .then(Commands.literal("upkeep")
@@ -146,102 +146,8 @@ public final class NationCommands {
                                                         ctx, StringArgumentType.getString(ctx, "city"))))))));
     }
 
-    private static int create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
-        if (saved(ctx).refuseChanges(ctx.getSource())) {
-            return 0;
-        }
-        ServerPlayer player = player(ctx.getSource());
-        if (player == null) {
-            return Messages.error(ctx.getSource(), "command.colony_nations.players_only");
-        }
-        NationSavedData data = saved(ctx);
-        NationRegistry registry = data.registry();
-        try {
-            Nation nation = registry.create(
-                    StringArgumentType.getString(ctx, "name"),
-                    player.getUUID(),
-                    0xFFFFFF,
-                    ctx.getSource().getLevel().getGameTime());
-            int taxRate = NationTaxCommands.foundingRate();
-            if (taxRate != nation.taxRate()) {
-                registry.setTax(nation.id(), taxRate, null);
-            }
-            data.setDirty();
-            return Messages.event(ctx.getSource(), "command.colony_nations.create.success", nation.name());
-        } catch (NationException exception) {
-            return failRule(ctx.getSource(), exception);
-        }
-    }
-
     private static int disband(CommandContext<CommandSourceStack> ctx, String nationName) throws CommandSyntaxException {
-        CommandSourceStack source = ctx.getSource();
-        NationSavedData data = saved(ctx);
-        if (data.refuseChanges(source)) {
-            return 0;
-        }
-        Nation nation = resolveMutable(source, data.registry(), nationName);
-        if (nation == null) {
-            return 0;
-        }
-        long windowTicks = Config.DISBAND_CONFIRM_SECONDS.get() * TICKS_PER_SECOND;
-        String key = actorKey(source) + ":" + nation.id();
-        if (!DISBANDS.confirm(key, source.getLevel().getGameTime(), windowTicks)) {
-            return Messages.info(
-                    source,
-                    "command.colony_nations.disband.confirm",
-                    nation.name(),
-                    Config.DISBAND_CONFIRM_SECONDS.get());
-        }
-        for (CityRef city : nation.cities()) {
-            CitizenTaxHappiness.clear(MineColoniesCities.findByCity(city));
-        }
-        Secession.dropNation(data, nation.id());
-        TerritorySync.onDisband(source.getServer(), nation);
-        data.registry().delete(nation.id());
-        data.territory().releaseAll(nation.id());
-        data.setDirty();
-        return Messages.success(source, "command.colony_nations.disband.success", nation.name());
-    }
-
-    private static int rename(CommandContext<CommandSourceStack> ctx, String nationName, String newName) throws CommandSyntaxException {
-        CommandSourceStack source = ctx.getSource();
-        NationSavedData data = saved(ctx);
-        if (data.refuseChanges(source)) {
-            return 0;
-        }
-        Nation nation = resolveMutable(source, data.registry(), nationName);
-        if (nation == null) {
-            return 0;
-        }
-        String previous = nation.name();
-        try {
-            Nation renamed = data.registry().rename(nation.id(), newName);
-            data.setDirty();
-            TerritorySync.nationMeta(source.getServer(), renamed);
-            return Messages.success(source, "command.colony_nations.rename.success", previous, renamed.name());
-        } catch (NationException exception) {
-            return failRule(source, exception);
-        }
-    }
-
-    private static int color(CommandContext<CommandSourceStack> ctx, String nationName, String rawColor) throws CommandSyntaxException {
-        CommandSourceStack source = ctx.getSource();
-        if (saved(ctx).refuseChanges(source)) {
-            return 0;
-        }
-        Integer rgb = NationColors.parse(rawColor);
-        if (rgb == null) {
-            return Messages.error(source, "command.colony_nations.color.invalid");
-        }
-        NationSavedData data = saved(ctx);
-        Nation nation = resolveMutable(source, data.registry(), nationName);
-        if (nation == null) {
-            return 0;
-        }
-        Nation colored = data.registry().setColor(nation.id(), rgb);
-        data.setDirty();
-        TerritorySync.nationMeta(source.getServer(), colored);
-        return Messages.success(source, "command.colony_nations.color.success", colored.name(), formatColor(rgb));
+        return NationOperations.disband(ctx.getSource(), nationName, DISBANDS);
     }
 
     private static int info(CommandContext<CommandSourceStack> ctx, String nationName) throws CommandSyntaxException {
@@ -264,7 +170,7 @@ public final class NationCommands {
             }
         }
         Messages.header(source, "command.colony_nations.info.header", nation.name());
-        Messages.line(source, "command.colony_nations.info.owner", ownerLabel(source, nation.owner()));
+        Messages.line(source, "command.colony_nations.info.owner", NationOperations.ownerLabel(source, nation.owner()));
         Messages.line(source, "command.colony_nations.info.color", Messages.swatch(nation.color()), formatColor(nation.color()));
         Messages.line(source, "command.colony_nations.info.capital", capitalLabel(nation));
         Messages.line(source, "command.colony_nations.info.colonies", coloniesLabel(nation));
@@ -286,77 +192,22 @@ public final class NationCommands {
                     source,
                     "command.colony_nations.list.entry",
                     nation.name(),
-                    ownerLabel(source, nation.owner()),
+                    NationOperations.ownerLabel(source, nation.owner()),
                     nation.cities().size());
         }
         return 1;
     }
 
-    /**
-     * @param nationName null when the command targets the sender's own nation
-     */
-    private static Nation resolveMutable(CommandSourceStack source, NationRegistry registry, String nationName) throws CommandSyntaxException {
-        if (nationName != null) {
-            Nation nation = registry.byName(nationName).orElse(null);
-            if (nation == null) {
-                Messages.error(source, "command.colony_nations.unknown", nationName);
-            }
-            return nation;
-        }
-        ServerPlayer player = player(source);
-        if (player == null) {
-            Messages.error(source, "command.colony_nations.players_only");
-            return null;
-        }
-        Nation nation = registry.byOwner(player.getUUID()).orElse(null);
-        if (nation == null) {
-            Messages.error(source, "command.colony_nations.info.none");
-            return null;
-        }
-        if (!nation.owner().equals(player.getUUID())) {
-            Messages.error(source, "command.colony_nations.not_owner");
-            return null;
-        }
-        return nation;
-    }
-
     private static ServerPlayer player(CommandSourceStack source) throws CommandSyntaxException {
-        if (source.getEntity() instanceof ServerPlayer player) {
-            return player;
-        }
-        if (source.getEntity() == null) {
-            return null;
-        }
-        return source.getPlayerOrException();
-    }
-
-    private static String actorKey(CommandSourceStack source) throws CommandSyntaxException {
-        ServerPlayer player = player(source);
-        return player == null ? "console" : player.getUUID().toString();
+        return NationOperations.player(source);
     }
 
     private static NationSavedData saved(CommandContext<CommandSourceStack> ctx) {
         return NationSavedData.get(ctx.getSource().getServer());
     }
 
-    private static int failRule(CommandSourceStack source, NationException exception) {
-        String key = switch (exception.reason()) {
-            case NAME_LENGTH -> "command.colony_nations.name_length";
-            case NAME_TAKEN -> "command.colony_nations.name_taken";
-            case OWNER_HAS_NATION -> "command.colony_nations.owner_has_nation";
-            case UNKNOWN_NATION -> "command.colony_nations.unknown";
-            case COLONY_TAKEN, UNKNOWN_COLONY -> "command.colony_nations.unknown";
-        };
-        return Messages.error(source, key);
-    }
-
     private static String formatColor(int rgb) {
         return String.format(Locale.ROOT, "#%06X", rgb & 0xFFFFFF);
-    }
-
-    private static String ownerLabel(CommandSourceStack source, UUID owner) {
-        ServerPlayer online = source.getServer().getPlayerList().getPlayer(owner);
-        return online == null ? owner.toString() : online.getGameProfile().getName();
     }
 
     private static String capitalLabel(Nation nation) {
