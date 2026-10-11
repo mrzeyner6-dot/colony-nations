@@ -43,6 +43,11 @@ public final class Messages {
         return 0;
     }
 
+    public static void error(ServerPlayer player, String key, Object... args) {
+        player.sendSystemMessage(prefixed(ERROR, false, key, args));
+        play(player, SoundEvents.NOTE_BLOCK_BASS.value(), BASS_VOLUME, BASS_PITCH);
+    }
+
     public static int info(CommandSourceStack source, String key, Object... args) {
         source.sendSuccess(() -> prefixed(TEXT, false, key, args), false);
         return 1;

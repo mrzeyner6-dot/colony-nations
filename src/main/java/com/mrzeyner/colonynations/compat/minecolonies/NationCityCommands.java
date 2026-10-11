@@ -120,7 +120,11 @@ public final class NationCityCommands {
         }
         try {
             if (add) {
+                boolean joined = !nation.cities().contains(city);
                 registry.addColony(nation.id(), city);
+                if (joined) {
+                    NationCityLand.grant(data, nation.id(), colony);
+                }
             } else if (!nation.cities().contains(city)) {
                 return Messages.error(source, "command.colony_nations.capital.not_in_nation", colonyId, nation.name());
             } else {

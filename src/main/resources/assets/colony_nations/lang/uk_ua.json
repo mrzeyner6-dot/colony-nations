@@ -44,5 +44,8 @@
   "command.colony_nations.treasury.withdraw.no_space": "Зараз можна зняти щонайбільше %s spur (вільних слотів: %s).",
   "command.colony_nations.treasury.withdraw.unpayable": "Цю суму не можна видати наявними монетами.",
   "command.colony_nations.treasury.overflow": "Скарбниця не вміщує такий внесок.",
-  "command.colony_nations.save.unreadable": "Дані держав не прочитано (версія %s), зміни заблоковано, див. лог сервера."
+  "command.colony_nations.save.unreadable": "Дані держав не прочитано (версія %s), зміни заблоковано, див. лог сервера.",
+  "command.colony_nations.founding.foreign": "Не можна заснувати місто на землі держави %s.",
+  "command.colony_nations.founding.city": "Не можна заснувати місто на міській землі.",
+  "command.colony_nations.founding.needs_land": "Нове місто можна заснувати лише на землі вашої держави."
 }

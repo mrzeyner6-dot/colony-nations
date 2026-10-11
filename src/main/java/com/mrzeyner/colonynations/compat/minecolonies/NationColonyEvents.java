@@ -49,7 +49,11 @@ public final class NationColonyEvents {
         }
         try {
             CityRef city = MineColoniesCities.cityRef(colony);
+            boolean joined = !nation.cities().contains(city);
             data.registry().addColony(nation.id(), city);
+            if (joined) {
+                NationCityLand.grant(data, nation.id(), colony);
+            }
             data.setDirty();
         } catch (NationException exception) {
             ColonyNations.LOGGER.warn(
@@ -87,6 +91,7 @@ public final class NationColonyEvents {
             return;
         }
         data.registry().removeColony(nation.id(), city);
+        ColonyClaimCache.forget(city);
         data.setDirty();
     }
 
