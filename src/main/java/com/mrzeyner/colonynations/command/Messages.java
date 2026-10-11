@@ -52,6 +52,13 @@ public final class Messages {
         player.sendSystemMessage(prefixed(TEXT, false, key, args));
     }
 
+    /**
+     * Error styling with no sound, for repeated protection warnings.
+     */
+    public static void silentError(ServerPlayer player, String key, Object... args) {
+        player.sendSystemMessage(prefixed(ERROR, false, key, args));
+    }
+
     public static int info(CommandSourceStack source, String key, Object... args) {
         source.sendSuccess(() -> prefixed(TEXT, false, key, args), false);
         return 1;

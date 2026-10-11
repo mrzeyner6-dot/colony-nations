@@ -65,5 +65,6 @@
   "command.colony_nations.territory.upkeep": "Daily upkeep: %s spurs",
   "command.colony_nations.upkeep.paid": "Paid %s spurs for %s state chunks. Treasury: %s.",
   "command.colony_nations.upkeep.short": "Paid %s spurs and released %s state chunks. Treasury: %s.",
-  "command.colony_nations.upkeep.ran": "Ran upkeep for %s nations."
+  "command.colony_nations.upkeep.ran": "Ran upkeep for %s nations.",
+  "command.colony_nations.territory.protected": "This land belongs to %s."
 }
