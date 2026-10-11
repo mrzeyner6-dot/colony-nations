@@ -96,11 +96,11 @@ public final class TerritorySync {
         byDimension.forEach((dimension, plots) -> sendDimension(server, dimension, plots));
     }
 
-    public static void cityChanged(MinecraftServer server, UUID nationId, Set<ChunkRef> chunks, boolean added) {
+    public static void cityChanged(MinecraftServer server, UUID nationId, Set<ChunkRef> chunks, boolean added, String cityName) {
         Map<String, List<ChunkPlot>> byDimension = new HashMap<>();
         for (ChunkRef chunk : chunks) {
             ChunkPlot plot = added
-                    ? ChunkPlot.city(chunk.x(), chunk.z(), nationId)
+                    ? ChunkPlot.city(chunk.x(), chunk.z(), nationId, cityName)
                     : ChunkPlot.release(chunk.x(), chunk.z());
             byDimension.computeIfAbsent(chunk.dimension(), key -> new ArrayList<>()).add(plot);
         }
@@ -115,12 +115,13 @@ public final class TerritorySync {
         List<ChunkPlot> plots = new ArrayList<>();
         for (Nation nation : data.registry().all()) {
             nations.add(stamp(nation));
-            for (ChunkRef chunk : ColonyClaimChunks.ofNation(nation)) {
+            for (Map.Entry<ChunkRef, String> entry : ColonyClaimChunks.namedClaims(nation).entrySet()) {
+                ChunkRef chunk = entry.getKey();
                 if (!dimension.equals(chunk.dimension())) {
                     continue;
                 }
                 city.add(chunk);
-                plots.add(ChunkPlot.city(chunk.x(), chunk.z(), nation.id()));
+                plots.add(ChunkPlot.city(chunk.x(), chunk.z(), nation.id(), entry.getValue()));
             }
         }
         for (ChunkRef chunk : data.territory().allChunks()) {

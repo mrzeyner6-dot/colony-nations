@@ -47,7 +47,8 @@ public final class NationCityLand {
         data.setDirty();
         if (colony.getWorld() instanceof ServerLevel level) {
             TerritorySync.stateChanged(level.getServer(), nationId, before, data.territory().chunks(nationId));
-            TerritorySync.cityChanged(level.getServer(), nationId, claim, true);
+            String name = colony.getName() == null ? "" : colony.getName();
+            TerritorySync.cityChanged(level.getServer(), nationId, claim, true, name);
         }
     }
 }

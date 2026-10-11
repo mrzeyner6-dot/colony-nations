@@ -1,5 +1,6 @@
 package com.mrzeyner.colonynations.compat.minecolonies;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -47,7 +48,14 @@ public final class ColonyClaimChunks {
     }
 
     public static Set<ChunkRef> ofNation(Nation nation) {
-        Set<ChunkRef> chunks = new HashSet<>();
+        return Set.copyOf(namedClaims(nation).keySet());
+    }
+
+    /**
+     * City chunks of a nation, each labeled with its colony name. Overlapping claims keep the first name.
+     */
+    public static Map<ChunkRef, String> namedClaims(Nation nation) {
+        Map<ChunkRef, String> named = new HashMap<>();
         for (CityRef city : nation.cities()) {
             IColony colony = MineColoniesCities.findByCity(city);
             if (colony == null) {
@@ -55,9 +63,12 @@ public final class ColonyClaimChunks {
             }
             Set<ChunkRef> claim = of(colony);
             ColonyClaimCache.remember(city, claim);
-            chunks.addAll(claim);
+            String name = colony.getName() == null ? "" : colony.getName();
+            for (ChunkRef chunk : claim) {
+                named.putIfAbsent(chunk, name);
+            }
         }
-        return chunks;
+        return named;
     }
 
     public static int townHallLevels(Nation nation) {

@@ -136,7 +136,7 @@ public final class NationCityCommands {
                 registry.removeColony(nation.id(), city);
                 ColonyClaimCache.forget(city);
                 claim.removeAll(ColonyClaimChunks.ofNation(data.registry().byId(nation.id()).orElse(nation)));
-                TerritorySync.cityChanged(source.getServer(), nation.id(), claim, false);
+                TerritorySync.cityChanged(source.getServer(), nation.id(), claim, false, "");
             }
         } catch (NationException exception) {
             if (exception.reason() == NationException.Reason.COLONY_TAKEN) {

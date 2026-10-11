@@ -66,5 +66,7 @@
   "command.colony_nations.upkeep.paid": "Paid %s spurs for %s state chunks. Treasury: %s.",
   "command.colony_nations.upkeep.short": "Paid %s spurs and released %s state chunks. Treasury: %s.",
   "command.colony_nations.upkeep.ran": "Ran upkeep for %s nations.",
-  "command.colony_nations.territory.protected": "This land belongs to %s."
+  "command.colony_nations.territory.protected": "This land belongs to %s.",
+  "map.colony_nations.land.state": "State land",
+  "map.colony_nations.land.city": "City \"%s\""
 }

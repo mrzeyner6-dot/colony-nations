@@ -10,8 +10,15 @@ import net.minecraft.network.codec.StreamCodec;
  *
  * @param city true for MineColonies city land, false for state land
  * @param release true when the client should forget the chunk
+ * @param label colony name for city land; empty for state land and releases
  */
-public record ChunkPlot(int x, int z, UUID nation, boolean city, boolean release) {
+public record ChunkPlot(int x, int z, UUID nation, boolean city, boolean release, String label) {
+    public ChunkPlot {
+        if (label == null) {
+            label = "";
+        }
+    }
+
     public static final StreamCodec<RegistryFriendlyByteBuf, ChunkPlot> STREAM_CODEC = StreamCodec.of(
             (buf, plot) -> {
                 buf.writeVarInt(plot.x());
@@ -19,18 +26,25 @@ public record ChunkPlot(int x, int z, UUID nation, boolean city, boolean release
                 buf.writeUUID(plot.nation());
                 buf.writeBoolean(plot.city());
                 buf.writeBoolean(plot.release());
+                buf.writeUtf(plot.label());
             },
-            buf -> new ChunkPlot(buf.readVarInt(), buf.readVarInt(), buf.readUUID(), buf.readBoolean(), buf.readBoolean()));
+            buf -> new ChunkPlot(
+                    buf.readVarInt(),
+                    buf.readVarInt(),
+                    buf.readUUID(),
+                    buf.readBoolean(),
+                    buf.readBoolean(),
+                    buf.readUtf()));
 
     public static ChunkPlot state(int x, int z, UUID nation) {
-        return new ChunkPlot(x, z, nation, false, false);
+        return new ChunkPlot(x, z, nation, false, false, "");
     }
 
-    public static ChunkPlot city(int x, int z, UUID nation) {
-        return new ChunkPlot(x, z, nation, true, false);
+    public static ChunkPlot city(int x, int z, UUID nation, String label) {
+        return new ChunkPlot(x, z, nation, true, false, label);
     }
 
     public static ChunkPlot release(int x, int z) {
-        return new ChunkPlot(x, z, new UUID(0L, 0L), false, true);
+        return new ChunkPlot(x, z, new UUID(0L, 0L), false, true, "");
     }
 }

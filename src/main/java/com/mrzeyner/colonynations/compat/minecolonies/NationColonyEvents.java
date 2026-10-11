@@ -98,7 +98,7 @@ public final class NationColonyEvents {
         data.registry().removeColony(nation.id(), city);
         ColonyClaimCache.forget(city);
         claim.removeAll(ColonyClaimChunks.ofNation(data.registry().byId(nation.id()).orElse(nation)));
-        TerritorySync.cityChanged(server, nation.id(), claim, false);
+        TerritorySync.cityChanged(server, nation.id(), claim, false, "");
         data.setDirty();
     }
 
