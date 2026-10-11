@@ -197,6 +197,20 @@
   "gui.colony_nations.terminal.coins": "Coin receiver",
   "gui.colony_nations.terminal.goods": "Goods: not set",
   "gui.colony_nations.terminal.price": "Price: not set",
+  "gui.colony_nations.terminal.price_set": "Price: %s spurs for %s",
+  "gui.colony_nations.terminal.price_field": "Price in spurs",
+  "gui.colony_nations.terminal.pack_field": "Items in a pack",
+  "gui.colony_nations.terminal.apply": "Set price",
+  "gui.colony_nations.terminal.sample": "Sample",
+  "gui.colony_nations.terminal.sold_today": "Today: %s packs, %s spurs",
+  "gui.colony_nations.terminal.sold_yesterday": "Yesterday: %s packs, %s spurs",
+  "gui.colony_nations.terminal.credits": "Buyer credit",
+  "gui.colony_nations.terminal.credits_empty": "No credit yet",
+  "gui.colony_nations.terminal.counter": "Counter",
+  "gui.colony_nations.terminal.credit_line": "%s: %s",
   "gui.colony_nations.terminal.terms": "Terms: —",
-  "gui.colony_nations.terminal.credit": "Your nation's credit: %s"
+  "gui.colony_nations.terminal.credit": "Your nation's credit: %s",
+  "command.colony_nations.terminal.price_set": "Price set to %s spurs for %s.",
+  "command.colony_nations.terminal.price_invalid": "Use a price from 0 to 1000000000 and a pack from 1 to %s.",
+  "command.colony_nations.terminal.not_owner": "Only the nation's owner can change this terminal."
 }

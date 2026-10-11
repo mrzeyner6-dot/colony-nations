@@ -52,7 +52,11 @@ public final class TradeTerminalGuard {
         if (!(event.getLevel().getBlockEntity(event.getPos()) instanceof TradeTerminalBlockEntity terminal)) {
             return;
         }
-        player.openMenu(terminal, buf -> buf.writeBlockPos(event.getPos()).writeBoolean(terminal.canManage(player)));
+        boolean manager = terminal.canManage(player);
+        player.openMenu(terminal, buf -> buf.writeBlockPos(event.getPos()).writeBoolean(manager));
+        if (manager) {
+            terminal.sendCredits(player);
+        }
         event.setCanceled(true);
         event.setUseBlock(TriState.FALSE);
         event.setUseItem(TriState.FALSE);

@@ -2,8 +2,10 @@ package com.mrzeyner.colonynations;
 
 import com.mrzeyner.colonynations.client.NationKeys;
 import com.mrzeyner.colonynations.client.NationMenuClient;
+import com.mrzeyner.colonynations.client.TerminalCreditsClient;
 import com.mrzeyner.colonynations.client.TradeTerminalScreen;
 import com.mrzeyner.colonynations.network.NationOverviewPayload;
+import com.mrzeyner.colonynations.network.TerminalCreditsPayload;
 
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -27,6 +29,10 @@ public class ColonyNationsClient {
         event.registrar("1").playToClient(
                 NationOverviewPayload.TYPE,
                 NationOverviewPayload.STREAM_CODEC,
-                NationMenuClient::handle);
+                NationMenuClient::handle)
+                .playToClient(
+                        TerminalCreditsPayload.TYPE,
+                        TerminalCreditsPayload.STREAM_CODEC,
+                        TerminalCreditsClient::handle);
     }
 }

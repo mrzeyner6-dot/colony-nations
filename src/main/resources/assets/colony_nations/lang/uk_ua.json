@@ -197,6 +197,20 @@
   "gui.colony_nations.terminal.coins": "Приймач монет",
   "gui.colony_nations.terminal.goods": "Товар: не задано",
   "gui.colony_nations.terminal.price": "Ціна: не задано",
+  "gui.colony_nations.terminal.price_set": "Ціна: %s spur за %s",
+  "gui.colony_nations.terminal.price_field": "Ціна в spur",
+  "gui.colony_nations.terminal.pack_field": "Штук у пачці",
+  "gui.colony_nations.terminal.apply": "Задати ціну",
+  "gui.colony_nations.terminal.sample": "Зразок",
+  "gui.colony_nations.terminal.sold_today": "Сьогодні: %s пачок, %s spur",
+  "gui.colony_nations.terminal.sold_yesterday": "Учора: %s пачок, %s spur",
+  "gui.colony_nations.terminal.credits": "Кредит покупців",
+  "gui.colony_nations.terminal.credits_empty": "Кредиту ще немає",
+  "gui.colony_nations.terminal.counter": "Каса",
+  "gui.colony_nations.terminal.credit_line": "%s: %s",
   "gui.colony_nations.terminal.terms": "Умови: —",
-  "gui.colony_nations.terminal.credit": "Кредит твоєї держави: %s"
+  "gui.colony_nations.terminal.credit": "Кредит твоєї держави: %s",
+  "command.colony_nations.terminal.price_set": "Ціна: %s spur за %s.",
+  "command.colony_nations.terminal.price_invalid": "Ціна від 0 до 1000000000, пачка від 1 до %s.",
+  "command.colony_nations.terminal.not_owner": "Змінити цей термінал може лише власник держави."
 }

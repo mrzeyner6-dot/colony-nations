@@ -1,16 +1,27 @@
 package com.mrzeyner.colonynations.trade;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.compat.minecolonies.ChunkNation;
 import com.mrzeyner.colonynations.compat.numismatics.NumismaticsCoins;
 import com.mrzeyner.colonynations.data.NationSavedData;
+import com.mrzeyner.colonynations.economy.PopulationTax;
+import com.mrzeyner.colonynations.nation.Nation;
+import com.mrzeyner.colonynations.network.TerminalCreditsPayload;
+import com.mrzeyner.colonynations.territory.Upkeep;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,10 +35,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.MenuProvider;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * Three inventories and the nation this terminal belongs to.
- * The good for sale stays empty until T25, so automation accepts coins only.
+ * Stock, coin receiver, output, and the nation this terminal belongs to.
+ * The sample slot is the good for sale. Until T26 every payment is credited to {@link TerminalTrade#COUNTER}.
  */
 public final class TradeTerminalBlockEntity extends BlockEntity implements MenuProvider {
     public static final int STOCK_SLOTS = 27;
@@ -37,10 +49,29 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
     private final ItemStackHandler stock = new Notifying(STOCK_SLOTS, true);
     private final ItemStackHandler coins = new Notifying(COIN_SLOTS, false);
     private final ItemStackHandler output = new Notifying(OUTPUT_SLOTS, true);
+    private final ItemStackHandler sample = new ItemStackHandler(1) {
+        @Override
+        public int getSlotLimit(int slot) {
+            return 1;
+        }
+
+        @Override
+        protected void onContentsChanged(int slot) {
+            if (!reading) {
+                copySample();
+            }
+        }
+    };
     private final TradeTerminalAutomation.Insert insert = new TradeTerminalAutomation.Insert(this);
     private final TradeTerminalAutomation.Output extract = new TradeTerminalAutomation.Output(this);
+    private final Map<UUID, Long> credits = new LinkedHashMap<>();
     private ItemStack goods = ItemStack.EMPTY;
     private UUID nationId;
+    private long price;
+    private int packSize = 1;
+    private TerminalLedger ledger = TerminalLedger.unset();
+    private String creditSnapshot = "";
+    private boolean reading;
 
     public TradeTerminalBlockEntity(BlockPos pos, BlockState state) {
         super(TradeBlocks.TRADE_TERMINAL_BE.get(), pos, state);
@@ -56,6 +87,10 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
 
     public ItemStackHandler output() {
         return output;
+    }
+
+    public ItemStackHandler sample() {
+        return sample;
     }
 
     public TradeTerminalAutomation.Insert insertHandler() {
@@ -74,8 +109,46 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
         return goods;
     }
 
+    public long price() {
+        return price;
+    }
+
+    public int packSize() {
+        return packSize;
+    }
+
+    public TerminalLedger ledger() {
+        return ledger;
+    }
+
+    public long creditOf(@Nullable UUID buyer) {
+        if (buyer == null) {
+            return 0L;
+        }
+        return credits.getOrDefault(buyer, 0L);
+    }
+
+    public Map<UUID, Long> credits() {
+        return Map.copyOf(credits);
+    }
+
+    /**
+     * Who is paying right now. T26 will return the nation that owns the train at the station.
+     */
+    public UUID buyer() {
+        // TODO(T26) nation of the train at this station, or a private buyer when the train has no nation.
+        return TerminalTrade.COUNTER;
+    }
+
     public boolean acceptsGoods(ItemStack stack) {
         return !goods.isEmpty() && stack != null && !stack.isEmpty() && ItemStack.isSameItemSameComponents(goods, stack);
+    }
+
+    public void setOffer(long nextPrice, int nextPack) {
+        int maxStack = goods.isEmpty() ? 64 : Math.max(1, goods.getMaxStackSize());
+        price = TerminalTrade.clampPrice(nextPrice);
+        packSize = TerminalTrade.clampPack(nextPack, maxStack);
+        setChanged();
     }
 
     public void adoptLand(@Nullable UUID landNation) {
@@ -95,16 +168,218 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
     }
 
     public void serverTick() {
-        if (!(level instanceof ServerLevel server) || server.getGameTime() % 20L != 0L) {
+        if (!(level instanceof ServerLevel server)) {
             return;
         }
-        adoptLand(ChunkNation.of(server, worldPosition));
+        long time = server.getGameTime();
+        if (time % 20L == 0L) {
+            adoptLand(ChunkNation.of(server, worldPosition));
+        }
+        if (time % 10L == 0L) {
+            exchange(server);
+        }
+    }
+
+    public void sendCredits(ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player, creditsPayload());
+        creditSnapshot = snapshot();
     }
 
     public void dropContents(Level level, BlockPos pos) {
         drop(level, pos, stock);
         drop(level, pos, coins);
         drop(level, pos, output);
+        drop(level, pos, sample);
+    }
+
+    private void exchange(ServerLevel server) {
+        if (NationSavedData.get(server.getServer()).unreadable()) {
+            return;
+        }
+        long today = server.getServer().overworld().getDayTime() / Upkeep.TICKS_PER_DAY;
+        TerminalLedger rolled = ledger.onDay(today);
+        boolean changed = !rolled.equals(ledger);
+        ledger = rolled;
+        long coinSpurs = coinSpurs();
+        TerminalTrade.Exchange deal = TerminalTrade.exchange(
+                coinSpurs, creditOf(buyer()), price, packSize, countGoods(stock), outputRoom());
+        if (!deal.selling()) {
+            if (changed) {
+                setChanged();
+                syncCredits(server, false);
+            }
+            return;
+        }
+        if (deal.treasurySpurs() > 0L && !payTreasury(server, deal.treasurySpurs())) {
+            if (changed) {
+                setChanged();
+            }
+            return;
+        }
+        if (deal.treasurySpurs() > 0L) {
+            clear(coins);
+        }
+        if (deal.packs() > 0) {
+            moveGoods(deal.packs() * packSize);
+        }
+        storeCredit(buyer(), deal.credit());
+        ledger = ledger.record(deal.packs(), deal.treasurySpurs());
+        setChanged();
+        syncCredits(server, true);
+    }
+
+    private boolean payTreasury(ServerLevel server, long spurs) {
+        if (nationId == null) {
+            return false;
+        }
+        NationSavedData data = NationSavedData.get(server.getServer());
+        Nation nation = data.registry().byId(nationId).orElse(null);
+        if (nation == null) {
+            return false;
+        }
+        PopulationTax.Deposit deposit = PopulationTax.deposit(nation.treasury(), spurs);
+        data.registry().setTreasury(nation.id(), deposit.treasury());
+        data.setDirty();
+        if (deposit.overflow()) {
+            ColonyNations.LOGGER.warn("Treasury of {} overflowed while a trade terminal paid in", nation.name());
+        }
+        return true;
+    }
+
+    private void storeCredit(UUID buyer, long credit) {
+        if (buyer == null || credit <= 0L) {
+            credits.remove(buyer);
+            return;
+        }
+        credits.put(buyer, credit);
+    }
+
+    private long coinSpurs() {
+        long total = 0L;
+        for (int slot = 0; slot < coins.getSlots(); slot++) {
+            long part = NumismaticsCoins.stackSpurs(coins.getStackInSlot(slot));
+            try {
+                total = Math.addExact(total, part);
+            } catch (ArithmeticException overflow) {
+                return Long.MAX_VALUE;
+            }
+        }
+        return total;
+    }
+
+    private int countGoods(ItemStackHandler handler) {
+        int count = 0;
+        for (int slot = 0; slot < handler.getSlots(); slot++) {
+            ItemStack stack = handler.getStackInSlot(slot);
+            if (acceptsGoods(stack)) {
+                count += stack.getCount();
+            }
+        }
+        return count;
+    }
+
+    private int outputRoom() {
+        if (goods.isEmpty()) {
+            return 0;
+        }
+        int max = Math.max(1, goods.getMaxStackSize());
+        int room = 0;
+        for (int slot = 0; slot < output.getSlots(); slot++) {
+            ItemStack stack = output.getStackInSlot(slot);
+            if (stack.isEmpty()) {
+                room += max;
+            } else if (acceptsGoods(stack)) {
+                room += Math.max(0, max - stack.getCount());
+            }
+        }
+        return room;
+    }
+
+    private void moveGoods(int amount) {
+        int left = amount;
+        while (left > 0) {
+            int slot = -1;
+            for (int index = 0; index < stock.getSlots(); index++) {
+                if (acceptsGoods(stock.getStackInSlot(index))) {
+                    slot = index;
+                    break;
+                }
+            }
+            if (slot < 0) {
+                return;
+            }
+            ItemStack stack = stock.getStackInSlot(slot);
+            int take = Math.min(left, stack.getCount());
+            ItemStack piece = stack.copyWithCount(take);
+            ItemStack remainder = piece;
+            for (int index = 0; index < output.getSlots() && !remainder.isEmpty(); index++) {
+                remainder = output.insertItem(index, remainder, false);
+            }
+            int moved = take - remainder.getCount();
+            if (moved <= 0) {
+                return;
+            }
+            stack.shrink(moved);
+            stock.setStackInSlot(slot, stack.isEmpty() ? ItemStack.EMPTY : stack);
+            left -= moved;
+        }
+    }
+
+    private void copySample() {
+        ItemStack stack = sample.getStackInSlot(0);
+        goods = stack.isEmpty() ? ItemStack.EMPTY : stack.copyWithCount(1);
+        if (!goods.isEmpty()) {
+            packSize = TerminalTrade.clampPack(packSize, goods.getMaxStackSize());
+        }
+        setChanged();
+    }
+
+    private void syncCredits(ServerLevel server, boolean force) {
+        String next = snapshot();
+        if (!force && next.equals(creditSnapshot)) {
+            return;
+        }
+        creditSnapshot = next;
+        TerminalCreditsPayload payload = creditsPayload();
+        for (ServerPlayer player : server.players()) {
+            if (player.containerMenu instanceof TradeTerminalMenu menu
+                    && worldPosition.equals(menu.blockPos())
+                    && menu.owner()) {
+                PacketDistributor.sendToPlayer(player, payload);
+            }
+        }
+    }
+
+    private TerminalCreditsPayload creditsPayload() {
+        NationSavedData data = level instanceof ServerLevel server ? NationSavedData.get(server.getServer()) : null;
+        List<TerminalCreditsPayload.Line> lines = new ArrayList<>();
+        for (Map.Entry<UUID, Long> entry : credits.entrySet()) {
+            if (entry.getValue() <= 0L || lines.size() >= TerminalCreditsPayload.MAX_LINES) {
+                continue;
+            }
+            String name = "";
+            if (!TerminalTrade.COUNTER.equals(entry.getKey())) {
+                name = data == null
+                        ? entry.getKey().toString()
+                        : data.registry().byId(entry.getKey()).map(Nation::name).orElse(entry.getKey().toString());
+            }
+            lines.add(new TerminalCreditsPayload.Line(entry.getKey(), name, entry.getValue()));
+        }
+        return new TerminalCreditsPayload(worldPosition, lines);
+    }
+
+    private String snapshot() {
+        StringBuilder builder = new StringBuilder();
+        for (Map.Entry<UUID, Long> entry : credits.entrySet()) {
+            builder.append(entry.getKey()).append('=').append(entry.getValue()).append(';');
+        }
+        return builder.toString();
+    }
+
+    private static void clear(ItemStackHandler handler) {
+        for (int slot = 0; slot < handler.getSlots(); slot++) {
+            handler.setStackInSlot(slot, ItemStack.EMPTY);
+        }
     }
 
     private static void drop(Level level, BlockPos pos, ItemStackHandler handler) {
@@ -125,7 +400,11 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
     @Override
     public AbstractContainerMenu createMenu(int id, Inventory inventory, Player player) {
         boolean owner = player instanceof ServerPlayer serverPlayer && canManage(serverPlayer);
-        return new TradeTerminalMenu(id, inventory, this, owner);
+        UUID viewer = null;
+        if (player instanceof ServerPlayer serverPlayer) {
+            viewer = NationSavedData.get(serverPlayer.server).registry().byOwner(serverPlayer.getUUID()).map(Nation::id).orElse(null);
+        }
+        return new TradeTerminalMenu(id, inventory, this, owner, viewer);
     }
 
     @Override
@@ -141,11 +420,28 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
         if (!goods.isEmpty()) {
             tag.put("Goods", goods.save(registries));
         }
+        tag.putLong("Price", price);
+        tag.putInt("Pack", packSize);
+        tag.putLong("StatDay", ledger.day());
+        tag.putInt("PacksToday", ledger.packsToday());
+        tag.putLong("SpursToday", ledger.spursToday());
+        tag.putInt("PacksYesterday", ledger.packsYesterday());
+        tag.putLong("SpursYesterday", ledger.spursYesterday());
+        ListTag rows = new ListTag();
+        for (Map.Entry<UUID, Long> entry : credits.entrySet()) {
+            CompoundTag row = new CompoundTag();
+            row.putLong("Most", entry.getKey().getMostSignificantBits());
+            row.putLong("Least", entry.getKey().getLeastSignificantBits());
+            row.putLong("Credit", entry.getValue());
+            rows.add(row);
+        }
+        tag.put("Credits", rows);
     }
 
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
+        reading = true;
         if (tag.contains("Stock")) {
             stock.deserializeNBT(registries, tag.getCompound("Stock"));
         }
@@ -163,6 +459,30 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
         goods = tag.contains("Goods")
                 ? ItemStack.parse(registries, tag.get("Goods")).orElse(ItemStack.EMPTY)
                 : ItemStack.EMPTY;
+        if (!goods.isEmpty()) {
+            goods.setCount(1);
+        }
+        sample.setStackInSlot(0, goods.copy());
+        price = TerminalTrade.clampPrice(tag.getLong("Price"));
+        packSize = tag.contains("Pack") ? tag.getInt("Pack") : 1;
+        packSize = TerminalTrade.clampPack(packSize, goods.isEmpty() ? 64 : goods.getMaxStackSize());
+        long day = tag.contains("StatDay") ? tag.getLong("StatDay") : Long.MIN_VALUE;
+        ledger = new TerminalLedger(
+                day,
+                Math.max(0, tag.getInt("PacksToday")),
+                Math.max(0L, tag.getLong("SpursToday")),
+                Math.max(0, tag.getInt("PacksYesterday")),
+                Math.max(0L, tag.getLong("SpursYesterday")));
+        credits.clear();
+        ListTag rows = tag.getList("Credits", Tag.TAG_COMPOUND);
+        for (int index = 0; index < rows.size(); index++) {
+            CompoundTag row = rows.getCompound(index);
+            long credit = row.getLong("Credit");
+            if (credit > 0L) {
+                credits.put(new UUID(row.getLong("Most"), row.getLong("Least")), credit);
+            }
+        }
+        reading = false;
     }
 
     private final class Notifying extends ItemStackHandler {

@@ -1,6 +1,7 @@
 package com.mrzeyner.colonynations.network;
 
 import com.mrzeyner.colonynations.compat.minecolonies.NationMenuServer;
+import com.mrzeyner.colonynations.trade.TerminalSettings;
 
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
@@ -25,6 +26,10 @@ public final class TerritoryPayloads {
                 .playToServer(
                         NationActionPayload.TYPE,
                         NationActionPayload.STREAM_CODEC,
-                        NationMenuServer::action);
+                        NationMenuServer::action)
+                .playToServer(
+                        TerminalSettingsPayload.TYPE,
+                        TerminalSettingsPayload.STREAM_CODEC,
+                        TerminalSettings::apply);
     }
 }
