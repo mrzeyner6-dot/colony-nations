@@ -30,7 +30,7 @@ public final class TradeTerminalMenu extends AbstractContainerMenu {
     public static final int COIN_Y = 128;
     public static final int PLAYER_Y = 186;
     private static final int COLUMNS = 9;
-    private static final int DATA = 10;
+    private static final int DATA = 13;
 
     private final BlockPos pos;
     private final Level level;
@@ -137,6 +137,15 @@ public final class TradeTerminalMenu extends AbstractContainerMenu {
         return join(8);
     }
 
+    public long quotedPrice() {
+        return join(10);
+    }
+
+    public boolean embargo() {
+        int flag = remote ? mirror[12] : live(12);
+        return flag != 0;
+    }
+
     private long join(int lowIndex) {
         int low = remote ? mirror[lowIndex] : live(lowIndex);
         int high = remote ? mirror[lowIndex + 1] : live(lowIndex + 1);
@@ -159,6 +168,9 @@ public final class TradeTerminalMenu extends AbstractContainerMenu {
             case 7 -> high(ledger.spursYesterday());
             case 8 -> low(terminal.creditOf(viewerNation));
             case 9 -> high(terminal.creditOf(viewerNation));
+            case 10 -> low(terminal.quoteFor(viewerNation).price());
+            case 11 -> high(terminal.quoteFor(viewerNation).price());
+            case 12 -> terminal.embargoFor(viewerNation) ? 1 : 0;
             default -> 0;
         };
     }

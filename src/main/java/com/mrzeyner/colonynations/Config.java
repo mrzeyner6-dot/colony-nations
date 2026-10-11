@@ -132,6 +132,10 @@ public final class Config {
                     "The terminal sells only while a train is stopped at a station inside this box. The nearest such station wins.")
             .defineInRange("terminalStationRadius", 3, 1, 8);
 
+    public static final ModConfigSpec.IntValue MAX_TARIFF_PERCENT = BUILDER
+            .comment("Highest tariff a nation can set, in percent. A buyer pays ceil(base * (1 + tariff/100)).")
+            .defineInRange("maxTariffPercent", 200, 0, 1000);
+
     static {
         BUILDER.pop();
     }

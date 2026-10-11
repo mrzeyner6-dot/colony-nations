@@ -221,5 +221,19 @@
   "gui.colony_nations.terminal.credit": "Кредит твоєї держави: %s",
   "command.colony_nations.terminal.price_set": "Ціна: %s spur за %s.",
   "command.colony_nations.terminal.price_invalid": "Ціна від 0 до 1000000000, пачка від 1 до %s.",
-  "command.colony_nations.terminal.not_owner": "Змінити цей термінал може лише власник держави."
+  "command.colony_nations.terminal.not_owner": "Змінити цей термінал може лише власник держави.",
+  "gui.colony_nations.tab.trade": "Торгівля",
+  "gui.colony_nations.trade.default": "Мито за замовчуванням: %s%%",
+  "gui.colony_nations.trade.terminals": "Термінали",
+  "gui.colony_nations.trade.terminals_empty": "Завантажених терміналів немає",
+  "gui.colony_nations.trade.no_good": "не задано",
+  "gui.colony_nations.trade.terminal": "%s %s %s  %s  %s spur  склад %s  сьогодні %s",
+  "gui.colony_nations.trade.policy": "Політика",
+  "gui.colony_nations.trade.policy_empty": "Інших держав немає",
+  "gui.colony_nations.trade.row": "%s  %s%%",
+  "gui.colony_nations.trade.embargo_on": "Ембарго",
+  "gui.colony_nations.trade.embargo_off": "Вільно",
+  "gui.colony_nations.terminal.embargo": "Ембарго",
+  "command.colony_nations.trade.day": "Торгівля: продано %s пачок, зароблено %s spur",
+  "command.colony_nations.trade.unknown": "Такої держави немає."
 }

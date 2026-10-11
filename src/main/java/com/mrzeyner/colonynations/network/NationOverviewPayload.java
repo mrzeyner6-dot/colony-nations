@@ -99,7 +99,11 @@ public record NationOverviewPayload(boolean open, Overview overview) implements 
             long taxReadyDay,
             List<CityLine> cities,
             List<OfferLine> offers,
-            List<FreeLine> frees) {
+            List<FreeLine> frees,
+            int defaultTariff,
+            int maxTariff,
+            List<TerminalLine> terminals,
+            List<PolicyLine> policies) {
         public Overview {
             name = MenuLimits.clip(name, MenuLimits.LABEL);
             owner = MenuLimits.clip(owner, MenuLimits.LABEL);
@@ -107,12 +111,38 @@ public record NationOverviewPayload(boolean open, Overview overview) implements 
             cities = cities == null ? List.of() : List.copyOf(bound(cities, MenuLimits.CITIES));
             offers = offers == null ? List.of() : List.copyOf(bound(offers, MenuLimits.OFFERS));
             frees = frees == null ? List.of() : List.copyOf(bound(frees, MenuLimits.FREE));
+            terminals = terminals == null ? List.of() : List.copyOf(bound(terminals, MenuLimits.TERMINALS));
+            policies = policies == null ? List.of() : List.copyOf(bound(policies, MenuLimits.POLICIES));
         }
 
         public static Overview none() {
             return new Overview(
                     false, "", 0xFFFFFF, "", "", 0L, 0, 0, 0, 1000, 1000, 0,
-                    0, 0, 0, 0, 0, 0L, 0, 0L, 0, false, 0L, List.of(), List.of(), List.of());
+                    0, 0, 0, 0, 0, 0L, 0, 0L, 0, false, 0L, List.of(), List.of(), List.of(),
+                    0, 0, List.of(), List.of());
+        }
+    }
+
+    public record TerminalLine(
+            String dimension,
+            int x,
+            int y,
+            int z,
+            String good,
+            long price,
+            int stock,
+            int packsToday,
+            long spursToday) {
+        public TerminalLine {
+            dimension = MenuLimits.clip(dimension, MenuLimits.DIMENSION);
+            good = MenuLimits.clip(good, MenuLimits.LABEL);
+        }
+    }
+
+    public record PolicyLine(String nationId, String name, int tariff, boolean embargo) {
+        public PolicyLine {
+            nationId = MenuLimits.clip(nationId, MenuLimits.LABEL);
+            name = MenuLimits.clip(name, MenuLimits.LABEL);
         }
     }
 
@@ -172,6 +202,27 @@ public record NationOverviewPayload(boolean open, Overview overview) implements 
             buf.writeByte(free.block);
             buf.writeVarLong(free.readyDay);
         }
+        buf.writeVarInt(view.defaultTariff);
+        buf.writeVarInt(view.maxTariff);
+        buf.writeVarInt(view.terminals.size());
+        for (TerminalLine terminal : view.terminals) {
+            buf.writeUtf(terminal.dimension);
+            buf.writeVarInt(terminal.x);
+            buf.writeVarInt(terminal.y);
+            buf.writeVarInt(terminal.z);
+            buf.writeUtf(terminal.good);
+            buf.writeVarLong(terminal.price);
+            buf.writeVarInt(terminal.stock);
+            buf.writeVarInt(terminal.packsToday);
+            buf.writeVarLong(terminal.spursToday);
+        }
+        buf.writeVarInt(view.policies.size());
+        for (PolicyLine policy : view.policies) {
+            buf.writeUtf(policy.nationId);
+            buf.writeUtf(policy.name);
+            buf.writeVarInt(policy.tariff);
+            buf.writeBoolean(policy.embargo);
+        }
     }
 
     private static NationOverviewPayload decode(RegistryFriendlyByteBuf buf) {
@@ -203,7 +254,11 @@ public record NationOverviewPayload(boolean open, Overview overview) implements 
                 buf.readVarLong(),
                 readCities(buf),
                 readOffers(buf),
-                readFrees(buf));
+                readFrees(buf),
+                buf.readVarInt(),
+                buf.readVarInt(),
+                readTerminals(buf),
+                readPolicies(buf));
         return new NationOverviewPayload(open, view);
     }
 
@@ -262,6 +317,43 @@ public record NationOverviewPayload(boolean open, Overview overview) implements 
                     buf.readVarLong()));
         }
         return frees;
+    }
+
+    private static List<TerminalLine> readTerminals(RegistryFriendlyByteBuf buf) {
+        int count = buf.readVarInt();
+        if (count < 0 || count > MenuLimits.TERMINALS) {
+            throw new DecoderException("too many terminals");
+        }
+        List<TerminalLine> terminals = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            terminals.add(new TerminalLine(
+                    buf.readUtf(MenuLimits.DIMENSION),
+                    buf.readVarInt(),
+                    buf.readVarInt(),
+                    buf.readVarInt(),
+                    buf.readUtf(MenuLimits.LABEL),
+                    buf.readVarLong(),
+                    buf.readVarInt(),
+                    buf.readVarInt(),
+                    buf.readVarLong()));
+        }
+        return terminals;
+    }
+
+    private static List<PolicyLine> readPolicies(RegistryFriendlyByteBuf buf) {
+        int count = buf.readVarInt();
+        if (count < 0 || count > MenuLimits.POLICIES) {
+            throw new DecoderException("too many tariffs");
+        }
+        List<PolicyLine> policies = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            policies.add(new PolicyLine(
+                    buf.readUtf(MenuLimits.LABEL),
+                    buf.readUtf(MenuLimits.LABEL),
+                    buf.readVarInt(),
+                    buf.readBoolean()));
+        }
+        return policies;
     }
 
     private static <T> List<T> bound(List<T> values, int max) {

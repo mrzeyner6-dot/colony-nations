@@ -43,6 +43,8 @@ public final class NationMenuScreen extends Screen {
     private int cityPage;
     private int freePage;
     private int offerPage;
+    private int terminalPage;
+    private int policyPage;
     private int draftTax;
     private Button taxApply;
     private int serverTax = Integer.MIN_VALUE;
@@ -111,6 +113,7 @@ public final class NationMenuScreen extends Screen {
             case 3 -> treasury();
             case 4 -> taxes();
             case 5 -> offers();
+            case 6 -> trade();
             default -> overview();
         }
     }
@@ -151,6 +154,7 @@ public final class NationMenuScreen extends Screen {
             case 3 -> graphics.drawString(font, Component.translatable("gui.colony_nations.treasury.balance", view.treasury()), x, y, TEXT, false);
             case 4 -> renderTax(graphics, x, y);
             case 5 -> renderOffers(graphics, x, y);
+            case 6 -> renderTrade(graphics, x, y);
             default -> {
             }
         }
@@ -169,6 +173,14 @@ public final class NationMenuScreen extends Screen {
             }
             if (tab == 5) {
                 shift(PAGE_OFFERS, scrollY > 0 ? -1 : 1, view.offers().size(), PAGE);
+                return true;
+            }
+            if (tab == 6) {
+                if (mouseY < top + 140) {
+                    shift(PAGE_TERMINALS, scrollY > 0 ? -1 : 1, view.terminals().size(), 3);
+                } else {
+                    shift(PAGE_POLICIES, scrollY > 0 ? -1 : 1, view.policies().size(), 3);
+                }
                 return true;
             }
         }
@@ -195,7 +207,8 @@ public final class NationMenuScreen extends Screen {
                 "gui.colony_nations.tab.territory",
                 "gui.colony_nations.tab.treasury",
                 "gui.colony_nations.tab.tax",
-                "gui.colony_nations.tab.offers"
+                "gui.colony_nations.tab.offers",
+                "gui.colony_nations.tab.trade"
         };
         for (int i = 0; i < keys.length; i++) {
             int index = i;
@@ -463,6 +476,10 @@ public final class NationMenuScreen extends Screen {
             cityPage = clampPage(cityPage + delta, size, pageSize);
         } else if (target == PAGE_FREES) {
             freePage = clampPage(freePage + delta, size, pageSize);
+        } else if (target == PAGE_TERMINALS) {
+            terminalPage = clampPage(terminalPage + delta, size, pageSize);
+        } else if (target == PAGE_POLICIES) {
+            policyPage = clampPage(policyPage + delta, size, pageSize);
         } else {
             offerPage = clampPage(offerPage + delta, size, pageSize);
         }
@@ -655,6 +672,91 @@ public final class NationMenuScreen extends Screen {
         }
     }
 
+    private void trade() {
+        int x = left + 116;
+        addRenderableWidget(Button.builder(Component.literal("−"), button -> {
+                    if (view.defaultTariff() > 0) {
+                        send(NationActionPayload.TARIFF_DEFAULT, "", view.defaultTariff() - 1L, "", 0);
+                    }
+                })
+                .bounds(x + 200, top + 30, 20, 20)
+                .build());
+        addRenderableWidget(Button.builder(Component.literal("+"), button -> {
+                    if (view.defaultTariff() < view.maxTariff()) {
+                        send(NationActionPayload.TARIFF_DEFAULT, "", view.defaultTariff() + 1L, "", 0);
+                    }
+                })
+                .bounds(x + 224, top + 30, 20, 20)
+                .build());
+        List<NationOverviewPayload.PolicyLine> policies = view.policies();
+        int start = policyPage * 3;
+        for (int i = 0; i < 3 && start + i < policies.size(); i++) {
+            NationOverviewPayload.PolicyLine row = policies.get(start + i);
+            int y = top + 148 + i * 24;
+            String id = row.nationId();
+            Button down = Button.builder(Component.literal("−"), button -> {
+                        if (row.tariff() > 0) {
+                            send(NationActionPayload.TARIFF, "", -1L, id, 0);
+                        }
+                    })
+                    .bounds(x + 132, y, 18, 18)
+                    .build();
+            down.active = row.tariff() > 0;
+            addRenderableWidget(down);
+            Button up = Button.builder(Component.literal("+"), button -> {
+                        if (row.tariff() < view.maxTariff()) {
+                            send(NationActionPayload.TARIFF, "", 1L, id, 0);
+                        }
+                    })
+                    .bounds(x + 152, y, 18, 18)
+                    .build();
+            up.active = row.tariff() < view.maxTariff();
+            addRenderableWidget(up);
+            addRenderableWidget(Button.builder(Component.translatable(row.embargo()
+                            ? "gui.colony_nations.trade.embargo_on"
+                            : "gui.colony_nations.trade.embargo_off"), button ->
+                            send(NationActionPayload.EMBARGO, "", 0L, id, 0))
+                    .bounds(x + 174, y, 78, 18)
+                    .build());
+        }
+    }
+
+    private void renderTrade(GuiGraphics graphics, int x, int y) {
+        graphics.drawString(font, Component.translatable("gui.colony_nations.trade.default", view.defaultTariff()), x, y, TEXT, false);
+        y += 22;
+        graphics.drawString(font, Component.translatable("gui.colony_nations.trade.terminals"), x, y, ACCENT, false);
+        y += 12;
+        List<NationOverviewPayload.TerminalLine> terminals = view.terminals();
+        if (terminals.isEmpty()) {
+            graphics.drawString(font, Component.translatable("gui.colony_nations.trade.terminals_empty"), x, y, TEXT, false);
+        } else {
+            int start = terminalPage * 3;
+            for (int i = 0; i < 3 && start + i < terminals.size(); i++) {
+                NationOverviewPayload.TerminalLine terminal = terminals.get(start + i);
+                Component good = terminal.good().isEmpty()
+                        ? Component.translatable("gui.colony_nations.trade.no_good")
+                        : Component.literal(terminal.good());
+                graphics.drawString(font, Component.translatable(
+                        "gui.colony_nations.trade.terminal",
+                        terminal.x(), terminal.y(), terminal.z(), good, terminal.price(), terminal.stock(), terminal.packsToday()), x, y, TEXT, false);
+                y += 12;
+            }
+        }
+        graphics.drawString(font, Component.translatable("gui.colony_nations.trade.policy"), x, top + 132, ACCENT, false);
+        List<NationOverviewPayload.PolicyLine> policies = view.policies();
+        if (policies.isEmpty()) {
+            graphics.drawString(font, Component.translatable("gui.colony_nations.trade.policy_empty"), x, top + 152, TEXT, false);
+            return;
+        }
+        int start = policyPage * 3;
+        int rowY = top + 152;
+        for (int i = 0; i < 3 && start + i < policies.size(); i++) {
+            NationOverviewPayload.PolicyLine row = policies.get(start + i);
+            graphics.drawString(font, Component.translatable("gui.colony_nations.trade.row", row.name(), row.tariff()), x, rowY, VALUE, false);
+            rowY += 24;
+        }
+    }
+
     private void send(byte action, String text, long amount, String dimension, int colonyId) {
         PacketDistributor.sendToServer(new NationActionPayload(action, text == null ? "" : text, amount, dimension == null ? "" : dimension, colonyId));
     }
@@ -727,6 +829,8 @@ public final class NationMenuScreen extends Screen {
     private static final int PAGE_CITIES = 0;
     private static final int PAGE_OFFERS = 1;
     private static final int PAGE_FREES = 2;
+    private static final int PAGE_TERMINALS = 3;
+    private static final int PAGE_POLICIES = 4;
 
     /**
      * Same codes as {@link com.mrzeyner.colonynations.compat.minecolonies.NationTerritoryCommands.Preview}.

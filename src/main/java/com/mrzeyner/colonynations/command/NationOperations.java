@@ -100,6 +100,7 @@ public final class NationOperations {
         }
         Secession.dropNation(data, nation.id());
         TerritorySync.onDisband(source.getServer(), nation);
+        data.clearTrade(nation.id());
         data.registry().delete(nation.id());
         data.territory().releaseAll(nation.id());
         data.setDirty();

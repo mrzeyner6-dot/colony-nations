@@ -6,6 +6,7 @@ import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.command.Messages;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.territory.Upkeep;
+import com.mrzeyner.colonynations.trade.TradeNotices;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
@@ -56,5 +57,6 @@ public final class NationDaily {
         NationUpkeep.run(server);
         CitizenTaxHappiness.refreshAll(server);
         SeparatismDay.advance(server);
+        TradeNotices.flush(server);
     }
 }

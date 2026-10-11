@@ -12,6 +12,8 @@ public final class MenuLimits {
     public static final int CITIES = 48;
     public static final int OFFERS = 24;
     public static final int FREE = 16;
+    public static final int TERMINALS = 24;
+    public static final int POLICIES = 32;
 
     private MenuLimits() {
     }

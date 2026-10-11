@@ -15,6 +15,8 @@ import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.NationCodec;
 import com.mrzeyner.colonynations.nation.NationRegistry;
 import com.mrzeyner.colonynations.territory.TerritoryMap;
+import com.mrzeyner.colonynations.trade.TradePolicy;
+import com.mrzeyner.colonynations.trade.TradeSales;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.HolderLookup;
@@ -38,6 +40,8 @@ public final class NationSavedData extends SavedData {
     private static final String OFFERS = "Offers";
     private static final String MENU_HINTS = "MenuHints";
     private static final String FREE_JOIN_DAYS = "FreeJoinDays";
+    private static final String TRADE_POLICIES = "TradePolicies";
+    private static final String TRADE_SALES = "TradeSales";
 
     private final NationRegistry registry;
     private final TerritoryMap territory;
@@ -46,6 +50,8 @@ public final class NationSavedData extends SavedData {
     private final List<SecessionOffer> offers = new ArrayList<>();
     private final Set<UUID> menuHints = new HashSet<>();
     private final Map<CityRef, Long> freeJoinDays = new HashMap<>();
+    private final Map<UUID, TradePolicy> tradePolicies = new HashMap<>();
+    private final Map<UUID, TradeSales.Book> tradeSales = new HashMap<>();
     private final byte[] preservedPayload;
     private final int unreadVersion;
     private boolean legacyGraceApplied;
@@ -252,6 +258,8 @@ public final class NationSavedData extends SavedData {
         data.offers.addAll(readOffers(tag));
         data.menuHints.addAll(readMenuHints(tag));
         data.freeJoinDays.putAll(readFreeJoinDays(tag));
+        data.tradePolicies.putAll(readTradePolicies(tag));
+        data.tradeSales.putAll(readTradeSales(tag));
         if (tag.contains(LAST_UPKEEP_DAY)) {
             data.lastUpkeepDay = tag.getLong(LAST_UPKEEP_DAY);
         }
@@ -267,6 +275,8 @@ public final class NationSavedData extends SavedData {
         tag.put(OFFERS, writeOffers());
         tag.put(MENU_HINTS, writeMenuHints());
         tag.put(FREE_JOIN_DAYS, writeFreeJoinDays());
+        tag.put(TRADE_POLICIES, writeTradePolicies());
+        tag.put(TRADE_SALES, writeTradeSales());
         if (lastUpkeepDay != null) {
             tag.putLong(LAST_UPKEEP_DAY, lastUpkeepDay);
         }
@@ -429,5 +439,159 @@ public final class NationSavedData extends SavedData {
                     offer.getLong("Day")));
         }
         return offers;
+    }
+
+    public TradePolicy tradePolicy(UUID nationId) {
+        if (nationId == null) {
+            return TradePolicy.empty();
+        }
+        return tradePolicies.getOrDefault(nationId, TradePolicy.empty());
+    }
+
+    public void setTradePolicy(UUID nationId, TradePolicy policy) {
+        if (nationId == null) {
+            return;
+        }
+        if (policy == null || policy.isEmpty()) {
+            tradePolicies.remove(nationId);
+        } else {
+            tradePolicies.put(nationId, policy);
+        }
+        setDirty();
+    }
+
+    public void recordTrade(UUID nationId, long today, int packs, long spurs) {
+        if (nationId == null || (packs <= 0 && spurs <= 0L)) {
+            return;
+        }
+        tradeSales.put(nationId, TradeSales.record(tradeSales.get(nationId), today, packs, spurs));
+        setDirty();
+    }
+
+    public void flushTrade(long today) {
+        boolean dirty = false;
+        for (UUID nationId : new ArrayList<>(tradeSales.keySet())) {
+            TradeSales.Book before = tradeSales.get(nationId);
+            TradeSales.Flush flush = TradeSales.flush(before, today);
+            if (flush.book().isEmpty()) {
+                tradeSales.remove(nationId);
+            } else {
+                tradeSales.put(nationId, flush.book());
+            }
+            if (!flush.book().equals(before)) {
+                dirty = true;
+            }
+            if (flush.report() != null) {
+                registry.byId(nationId).ifPresent(nation -> notices.add(new PendingNotice(
+                        nation.owner(),
+                        false,
+                        "command.colony_nations.trade.day",
+                        java.util.List.of(
+                                Integer.toString(flush.report().packs()),
+                                Long.toString(flush.report().spurs())))));
+                dirty = true;
+            }
+        }
+        if (dirty) {
+            setDirty();
+        }
+    }
+
+    public void clearTrade(UUID nationId) {
+        if (nationId == null) {
+            return;
+        }
+        boolean changed = tradePolicies.remove(nationId) != null || tradeSales.remove(nationId) != null;
+        if (changed) {
+            setDirty();
+        }
+    }
+
+    private ListTag writeTradePolicies() {
+        ListTag list = new ListTag();
+        for (Map.Entry<UUID, TradePolicy> entry : tradePolicies.entrySet()) {
+            CompoundTag tag = new CompoundTag();
+            tag.putString("Nation", entry.getKey().toString());
+            tag.putInt("Default", entry.getValue().defaultTariff());
+            ListTag duties = new ListTag();
+            for (Map.Entry<UUID, TradePolicy.Duty> duty : entry.getValue().duties().entrySet()) {
+                CompoundTag row = new CompoundTag();
+                row.putString("Buyer", duty.getKey().toString());
+                row.putInt("Tariff", duty.getValue().tariff());
+                row.putBoolean("Embargo", duty.getValue().embargo());
+                duties.add(row);
+            }
+            tag.put("Duties", duties);
+            list.add(tag);
+        }
+        return list;
+    }
+
+    private static Map<UUID, TradePolicy> readTradePolicies(CompoundTag tag) {
+        Map<UUID, TradePolicy> policies = new HashMap<>();
+        ListTag list = tag.getList(TRADE_POLICIES, Tag.TAG_COMPOUND);
+        for (Tag entry : list) {
+            if (!(entry instanceof CompoundTag policy)) {
+                continue;
+            }
+            try {
+                UUID nation = UUID.fromString(policy.getString("Nation"));
+                Map<UUID, TradePolicy.Duty> duties = new HashMap<>();
+                ListTag rows = policy.getList("Duties", Tag.TAG_COMPOUND);
+                for (Tag rowEntry : rows) {
+                    if (!(rowEntry instanceof CompoundTag row)) {
+                        continue;
+                    }
+                    duties.put(
+                            UUID.fromString(row.getString("Buyer")),
+                            new TradePolicy.Duty(row.getInt("Tariff"), row.getBoolean("Embargo")));
+                }
+                policies.put(nation, new TradePolicy(policy.getInt("Default"), duties));
+            } catch (IllegalArgumentException ignored) {
+                // Skip a damaged nation id.
+            }
+        }
+        return policies;
+    }
+
+    private ListTag writeTradeSales() {
+        ListTag list = new ListTag();
+        for (Map.Entry<UUID, TradeSales.Book> entry : tradeSales.entrySet()) {
+            CompoundTag tag = new CompoundTag();
+            tag.putString("Nation", entry.getKey().toString());
+            writeDay(tag, "Open", entry.getValue().open());
+            writeDay(tag, "Closed", entry.getValue().closed());
+            list.add(tag);
+        }
+        return list;
+    }
+
+    private static void writeDay(CompoundTag tag, String prefix, TradeSales.Day day) {
+        tag.putLong(prefix + "Day", day.day());
+        tag.putInt(prefix + "Packs", day.packs());
+        tag.putLong(prefix + "Spurs", day.spurs());
+    }
+
+    private static Map<UUID, TradeSales.Book> readTradeSales(CompoundTag tag) {
+        Map<UUID, TradeSales.Book> sales = new HashMap<>();
+        ListTag list = tag.getList(TRADE_SALES, Tag.TAG_COMPOUND);
+        for (Tag entry : list) {
+            if (!(entry instanceof CompoundTag row)) {
+                continue;
+            }
+            try {
+                sales.put(UUID.fromString(row.getString("Nation")), new TradeSales.Book(readDay(row, "Open"), readDay(row, "Closed")));
+            } catch (IllegalArgumentException ignored) {
+                // Skip a damaged nation id.
+            }
+        }
+        return sales;
+    }
+
+    private static TradeSales.Day readDay(CompoundTag tag, String prefix) {
+        if (!tag.contains(prefix + "Day")) {
+            return TradeSales.Day.unset();
+        }
+        return new TradeSales.Day(tag.getLong(prefix + "Day"), Math.max(0, tag.getInt(prefix + "Packs")), Math.max(0L, tag.getLong(prefix + "Spurs")));
     }
 }

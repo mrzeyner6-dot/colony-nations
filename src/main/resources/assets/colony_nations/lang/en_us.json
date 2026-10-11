@@ -221,5 +221,19 @@
   "gui.colony_nations.terminal.credit": "Your nation's credit: %s",
   "command.colony_nations.terminal.price_set": "Price set to %s spurs for %s.",
   "command.colony_nations.terminal.price_invalid": "Use a price from 0 to 1000000000 and a pack from 1 to %s.",
-  "command.colony_nations.terminal.not_owner": "Only the nation's owner can change this terminal."
+  "command.colony_nations.terminal.not_owner": "Only the nation's owner can change this terminal.",
+  "gui.colony_nations.tab.trade": "Trade",
+  "gui.colony_nations.trade.default": "Default tariff: %s%%",
+  "gui.colony_nations.trade.terminals": "Terminals",
+  "gui.colony_nations.trade.terminals_empty": "No loaded terminals",
+  "gui.colony_nations.trade.no_good": "not set",
+  "gui.colony_nations.trade.terminal": "%s %s %s  %s  %s spurs  stock %s  today %s",
+  "gui.colony_nations.trade.policy": "Policy",
+  "gui.colony_nations.trade.policy_empty": "No other nations",
+  "gui.colony_nations.trade.row": "%s  %s%%",
+  "gui.colony_nations.trade.embargo_on": "Embargo",
+  "gui.colony_nations.trade.embargo_off": "Open",
+  "gui.colony_nations.terminal.embargo": "Embargo",
+  "command.colony_nations.trade.day": "Trade: sold %s packs, earned %s spurs",
+  "command.colony_nations.trade.unknown": "No such nation."
 }

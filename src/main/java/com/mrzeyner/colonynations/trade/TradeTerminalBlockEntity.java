@@ -165,6 +165,9 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
         if (next == null ? nationId != null : !next.equals(nationId)) {
             nationId = next;
             setChanged();
+            if (level instanceof ServerLevel server) {
+                TerminalDirectory.put(server, worldPosition, nationId);
+            }
         }
     }
 
@@ -229,9 +232,14 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
             hold(server, data.registry(), dayChanged, visitChanged);
             return;
         }
+        TradeTerms.Quote quote = quote(data, visit);
+        if (!quote.allowed()) {
+            hold(server, data.registry(), dayChanged, visitChanged);
+            return;
+        }
         UUID buyer = visit.buyer();
         TerminalTrade.Exchange deal = TerminalTrade.exchange(
-                coinSpurs(), creditOf(buyer), price, packSize, countGoods(stock), outputRoom());
+                coinSpurs(), creditOf(buyer), quote.price(), packSize, countGoods(stock), outputRoom());
         if (!deal.selling()) {
             hold(server, data.registry(), dayChanged, visitChanged);
             return;
@@ -248,9 +256,65 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
         }
         storeCredit(buyer, deal.credit());
         ledger = ledger.record(deal.packs(), deal.treasurySpurs());
+        if (nationId != null && (deal.packs() > 0 || deal.treasurySpurs() > 0L)) {
+            data.recordTrade(nationId, today, deal.packs(), deal.treasurySpurs());
+        }
         setChanged();
         syncCredits(server, true);
         syncVisit(server, data.registry(), visitChanged);
+    }
+
+    private TradeTerms.Quote quote(NationSavedData data, TerminalStation.Binding binding) {
+        int max = Config.MAX_TARIFF_PERCENT.get();
+        if (binding.kind() != TerminalStation.Kind.NATION || nationId == null || binding.buyer() == null) {
+            return TradeTerms.quote(price, 0, false, true, max);
+        }
+        TradePolicy.Duty duty = data.tradePolicy(nationId).duty(binding.buyer());
+        return TradeTerms.quote(price, duty.tariff(), duty.embargo(), false, max);
+    }
+
+    public TradeTerms.Quote quoteFor(@Nullable UUID viewer) {
+        int max = Config.MAX_TARIFF_PERCENT.get();
+        if (!(level instanceof ServerLevel server) || nationId == null || viewer == null) {
+            return TradeTerms.quote(price, 0, false, true, max);
+        }
+        NationSavedData data = NationSavedData.get(server.getServer());
+        if (data.registry().byId(viewer).isEmpty()) {
+            return TradeTerms.quote(price, 0, false, true, max);
+        }
+        TradePolicy.Duty duty = data.tradePolicy(nationId).duty(viewer);
+        return TradeTerms.quote(price, duty.tariff(), duty.embargo(), false, max);
+    }
+
+    public boolean embargoFor(@Nullable UUID viewer) {
+        if (!(level instanceof ServerLevel server) || nationId == null || viewer == null) {
+            return false;
+        }
+        NationSavedData data = NationSavedData.get(server.getServer());
+        if (data.registry().byId(viewer).isEmpty()) {
+            return false;
+        }
+        return data.tradePolicy(nationId).duty(viewer).embargo();
+    }
+
+    public int stockCount() {
+        return countGoods(stock);
+    }
+
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        if (level instanceof ServerLevel server) {
+            TerminalDirectory.put(server, worldPosition, nationId);
+        }
+    }
+
+    @Override
+    public void setRemoved() {
+        super.setRemoved();
+        if (level instanceof ServerLevel server) {
+            TerminalDirectory.remove(server, worldPosition);
+        }
     }
 
     private void hold(ServerLevel server, NationRegistry registry, boolean dayChanged, boolean visitChanged) {

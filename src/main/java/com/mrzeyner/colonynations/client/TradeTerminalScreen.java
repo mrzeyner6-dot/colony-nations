@@ -116,11 +116,16 @@ public final class TradeTerminalScreen extends AbstractContainerScreen<TradeTerm
             }
             return;
         }
-        Component price = menu.price() <= 0
+        long shown = menu.quotedPrice() > 0L ? menu.quotedPrice() : menu.price();
+        Component price = shown <= 0L
                 ? Component.translatable("gui.colony_nations.terminal.price")
-                : Component.translatable("gui.colony_nations.terminal.price_set", menu.price(), menu.pack());
+                : Component.translatable("gui.colony_nations.terminal.price_set", shown, menu.pack());
         graphics.drawString(font, price, 32, 26, TEXT, false);
-        line(graphics, "gui.colony_nations.terminal.terms", 8, 48);
+        if (menu.embargo()) {
+            graphics.drawString(font, Component.translatable("gui.colony_nations.terminal.embargo"), 8, 48, 0xFFFF7A90, false);
+        } else {
+            line(graphics, "gui.colony_nations.terminal.terms", 8, 48);
+        }
         graphics.drawString(font, Component.translatable("gui.colony_nations.terminal.credit", menu.viewerCredit()), 8, 64, TEXT, false);
         visitLines(graphics, 8, 80);
     }

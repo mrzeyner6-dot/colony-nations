@@ -24,6 +24,16 @@ import com.mrzeyner.colonynations.network.NationActionPayload;
 import com.mrzeyner.colonynations.network.NationMenuRequestPayload;
 import com.mrzeyner.colonynations.network.NationOverviewPayload;
 import com.mrzeyner.colonynations.territory.Upkeep;
+import com.mrzeyner.colonynations.trade.TerminalDirectory;
+import com.mrzeyner.colonynations.trade.TradePolicy;
+import com.mrzeyner.colonynations.trade.TradePolicyOps;
+import com.mrzeyner.colonynations.trade.TradeTerminalBlockEntity;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
@@ -102,6 +112,9 @@ public final class NationMenuServer {
             case NationActionPayload.ACCEPT -> NationOperations.acceptOffer(source, payload.dimension(), payload.colonyId());
             case NationActionPayload.DECLINE -> NationOperations.declineOffer(source, payload.dimension(), payload.colonyId());
             case NationActionPayload.BUY -> NationOperations.buyCity(source, payload.dimension(), payload.colonyId());
+            case NationActionPayload.TARIFF_DEFAULT -> TradePolicyOps.setDefault(source, (int) payload.amount());
+            case NationActionPayload.TARIFF -> TradePolicyOps.bump(source, payload.dimension(), (int) payload.amount());
+            case NationActionPayload.EMBARGO -> TradePolicyOps.toggleEmbargo(source, payload.dimension());
             default -> 0;
         };
     }
@@ -148,7 +161,11 @@ public final class NationMenuServer {
                 canTax ? today : ready,
                 cities,
                 offers(data, nation),
-                frees(player, data, nation, gameTime));
+                frees(player, data, nation, gameTime),
+                data.tradePolicy(nation.id()).defaultTariff(),
+                Config.MAX_TARIFF_PERCENT.get(),
+                terminals(player, nation),
+                policies(data, nation));
     }
 
     private static List<NationOverviewPayload.CityLine> cities(Nation nation, long today) {
@@ -266,5 +283,54 @@ public final class NationMenuServer {
 
     private static int milli(double value) {
         return (int) Math.round(value * 1000.0);
+    }
+
+    private static List<NationOverviewPayload.TerminalLine> terminals(ServerPlayer player, Nation nation) {
+        List<NationOverviewPayload.TerminalLine> lines = new ArrayList<>();
+        for (TerminalDirectory.Pin pin : TerminalDirectory.of(nation.id())) {
+            if (lines.size() >= com.mrzeyner.colonynations.network.MenuLimits.TERMINALS) {
+                break;
+            }
+            ResourceLocation id = ResourceLocation.tryParse(pin.dimension());
+            if (id == null) {
+                continue;
+            }
+            ServerLevel level = player.server.getLevel(ResourceKey.create(Registries.DIMENSION, id));
+            if (level == null || !(level.getBlockEntity(new BlockPos(pin.x(), pin.y(), pin.z())) instanceof TradeTerminalBlockEntity terminal)) {
+                continue;
+            }
+            String good = terminal.goods().isEmpty() ? "" : terminal.goods().getHoverName().getString();
+            lines.add(new NationOverviewPayload.TerminalLine(
+                    pin.dimension(),
+                    pin.x(),
+                    pin.y(),
+                    pin.z(),
+                    good,
+                    terminal.price(),
+                    terminal.stockCount(),
+                    terminal.ledger().packsToday(),
+                    terminal.ledger().spursToday()));
+        }
+        return lines;
+    }
+
+    private static List<NationOverviewPayload.PolicyLine> policies(NationSavedData data, Nation nation) {
+        List<Nation> others = new ArrayList<>();
+        for (Nation other : data.registry().all()) {
+            if (!other.id().equals(nation.id())) {
+                others.add(other);
+            }
+        }
+        others.sort(Comparator.comparing(Nation::name));
+        TradePolicy policy = data.tradePolicy(nation.id());
+        List<NationOverviewPayload.PolicyLine> lines = new ArrayList<>();
+        for (Nation other : others) {
+            if (lines.size() >= com.mrzeyner.colonynations.network.MenuLimits.POLICIES) {
+                break;
+            }
+            TradePolicy.Duty duty = policy.duty(other.id());
+            lines.add(new NationOverviewPayload.PolicyLine(other.id().toString(), other.name(), duty.tariff(), duty.embargo()));
+        }
+        return lines;
     }
 }

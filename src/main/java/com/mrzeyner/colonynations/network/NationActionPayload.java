@@ -30,6 +30,9 @@ public record NationActionPayload(byte action, String text, long amount, String 
     public static final byte ACCEPT = 13;
     public static final byte DECLINE = 14;
     public static final byte BUY = 15;
+    public static final byte TARIFF_DEFAULT = 16;
+    public static final byte TARIFF = 17;
+    public static final byte EMBARGO = 18;
 
     public static final Type<NationActionPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(ColonyNations.MOD_ID, "nation_action"));
