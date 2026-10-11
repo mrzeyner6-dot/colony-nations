@@ -33,6 +33,34 @@ class NationCodecTerritoryTest {
         assertEquals(NationCodec.VERSION, migrated.version());
         assertEquals(registry.byId(rome.id()).orElseThrow(), migrated.registry().byId(rome.id()).orElseThrow());
         assertTrue(migrated.territory().claims().isEmpty());
+        assertEquals(Nation.DEFAULT_TAX_RATE, migrated.registry().byId(rome.id()).orElseThrow().taxRate());
+        assertEquals(null, migrated.registry().byId(rome.id()).orElseThrow().lastTaxChangeDay());
+    }
+
+    @Test
+    void version3DropsATaxRateWrittenOnlyInMemory() {
+        NationRegistry registry = new NationRegistry();
+        Nation rome = registry.create("Rome", UUID.randomUUID(), 0x112233, 9L);
+        registry.addColony(rome.id(), new CityRef("minecraft:overworld", 4));
+        registry.setTreasury(rome.id(), 15L);
+        registry.setTaxRate(rome.id(), 5, 3L);
+        TerritoryMap territory = new TerritoryMap();
+        ChunkRef chunk = new ChunkRef("minecraft:overworld", 1, 2);
+        territory.claim(chunk, rome.id());
+
+        NationCodec.Loaded loaded = NationCodec.load(NationCodec.writeVersion3(registry, territory));
+
+        assertEquals(3, loaded.version());
+        Nation migrated = loaded.registry().byId(rome.id()).orElseThrow();
+        assertEquals(Nation.DEFAULT_TAX_RATE, migrated.taxRate());
+        assertEquals(null, migrated.lastTaxChangeDay());
+        assertEquals(15L, migrated.treasury());
+        assertEquals(rome.id(), loaded.territory().owner(chunk).orElseThrow());
+
+        NationCodec.Loaded again = NationCodec.load(NationCodec.write(loaded));
+        assertEquals(NationCodec.VERSION, again.version());
+        assertEquals(migrated, again.registry().byId(rome.id()).orElseThrow());
+        assertEquals(rome.id(), again.territory().owner(chunk).orElseThrow());
     }
 
     @Test
@@ -50,7 +78,7 @@ class NationCodecTerritoryTest {
         assertArrayEquals(bytes, NationCodec.write(registry, territory));
 
         NationCodec.Loaded loaded = NationCodec.load(bytes);
-        assertEquals(3, loaded.version());
+        assertEquals(NationCodec.VERSION, loaded.version());
         assertEquals(rome.id(), loaded.territory().owner(overworld).orElseThrow());
         assertEquals(gaul.id(), loaded.territory().owner(nether).orElseThrow());
         assertEquals(registry.byId(rome.id()).orElseThrow(), loaded.registry().byId(rome.id()).orElseThrow());

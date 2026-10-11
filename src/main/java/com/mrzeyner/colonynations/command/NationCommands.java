@@ -16,8 +16,10 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.compat.minecolonies.NationCityCommands;
+import com.mrzeyner.colonynations.compat.minecolonies.NationTaxCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTerritoryCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationUpkeep;
+import com.mrzeyner.colonynations.economy.Tax;
 import com.mrzeyner.colonynations.compat.minecolonies.TerritorySync;
 import com.mrzeyner.colonynations.compat.numismatics.NationTreasuryCommands;
 import com.mrzeyner.colonynations.data.NationSavedData;
@@ -75,6 +77,7 @@ public final class NationCommands {
                         .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
                                 .executes(NationCityCommands::capital)))
                 .then(NationTreasuryCommands.branch())
+                .then(NationTaxCommands.branch())
                 .then(Commands.literal("annex").executes(NationTerritoryCommands::annex))
                 .then(Commands.literal("unannex").executes(NationTerritoryCommands::unannex))
                 .then(Commands.literal("territory").executes(NationTerritoryCommands::territory))
@@ -96,7 +99,9 @@ public final class NationCommands {
                                                         StringArgumentType.getString(ctx, "name"),
                                                         StringArgumentType.getString(ctx, "color"))))))
                         .then(Commands.literal("upkeep")
-                                .then(Commands.literal("run").executes(NationUpkeep::runCommand)))));
+                                .then(Commands.literal("run").executes(NationUpkeep::runCommand)))
+                        .then(Commands.literal("day")
+                                .then(Commands.literal("run").executes(NationUpkeep::runDay)))));
     }
 
     private static int create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -110,11 +115,13 @@ public final class NationCommands {
         NationSavedData data = saved(ctx);
         NationRegistry registry = data.registry();
         try {
+            int taxRate = Tax.bounded(Config.DEFAULT_TAX_RATE.get(), Config.MAX_TAX_RATE.get());
             Nation nation = registry.create(
                     StringArgumentType.getString(ctx, "name"),
                     player.getUUID(),
                     0xFFFFFF,
-                    ctx.getSource().getLevel().getGameTime());
+                    ctx.getSource().getLevel().getGameTime(),
+                    taxRate);
             data.setDirty();
             return Messages.event(ctx.getSource(), "command.colony_nations.create.success", nation.name());
         } catch (NationException exception) {

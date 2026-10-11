@@ -21,6 +21,10 @@ public final class NationRegistry {
     private final Map<CityRef, UUID> idByCity = new HashMap<>();
 
     public Nation create(String name, UUID owner, int color, long createdGameTime) {
+        return create(name, owner, color, createdGameTime, Nation.DEFAULT_TAX_RATE);
+    }
+
+    public Nation create(String name, UUID owner, int color, long createdGameTime, int taxRate) {
         Objects.requireNonNull(owner, "owner");
         String normalized = normalizeName(name);
         if (idByOwner.containsKey(owner)) {
@@ -29,7 +33,17 @@ public final class NationRegistry {
         if (idByName.containsKey(nameKey(normalized))) {
             throw new NationException(NationException.Reason.NAME_TAKEN);
         }
-        Nation nation = new Nation(UUID.randomUUID(), normalized, owner, color, null, Set.of(), 0L, createdGameTime);
+        Nation nation = new Nation(
+                UUID.randomUUID(),
+                normalized,
+                owner,
+                color,
+                null,
+                Set.of(),
+                0L,
+                createdGameTime,
+                taxRate,
+                null);
         index(nation);
         return nation;
     }
@@ -98,6 +112,12 @@ public final class NationRegistry {
 
     public Nation setTreasury(UUID nationId, long treasury) {
         Nation updated = requireNation(nationId).withTreasury(treasury);
+        nations.put(nationId, updated);
+        return updated;
+    }
+
+    public Nation setTaxRate(UUID nationId, int taxRate, long changedOnDay) {
+        Nation updated = requireNation(nationId).withTaxRate(taxRate, changedOnDay);
         nations.put(nationId, updated);
         return updated;
     }

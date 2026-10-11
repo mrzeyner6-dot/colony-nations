@@ -65,6 +65,16 @@ public final class NationSavedData extends SavedData {
         setDirty();
     }
 
+    public List<PendingNotice> notices() {
+        return List.copyOf(notices);
+    }
+
+    public void replaceNotices(List<PendingNotice> next) {
+        notices.clear();
+        notices.addAll(next);
+        setDirty();
+    }
+
     public List<PendingNotice> takeNotices(UUID owner) {
         List<PendingNotice> mine = new ArrayList<>();
         notices.removeIf(notice -> {

@@ -30,7 +30,8 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
- * Charges state-land upkeep once per Minecraft day. Offline owners receive the line when they next log in.
+ * Daily cycle: taxes, then state-land upkeep, once per Minecraft day.
+ * Offline owners receive the lines when they next log in.
  */
 @EventBusSubscriber(modid = ColonyNations.MOD_ID)
 public final class NationUpkeep {
@@ -51,6 +52,7 @@ public final class NationUpkeep {
             data.setLastUpkeepDay(due.recordedDay());
         }
         if (due.charge()) {
+            NationTaxes.collect(server);
             run(server);
         }
     }
@@ -74,6 +76,19 @@ public final class NationUpkeep {
     public static int runCommand(CommandContext<CommandSourceStack> ctx) {
         run(ctx.getSource().getServer());
         return Messages.success(ctx.getSource(), "command.colony_nations.upkeep.ran");
+    }
+
+    /**
+     * Operator command. Runs taxes and upkeep once and does not move {@code lastUpkeepDay}.
+     */
+    public static int runDay(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        if (NationSavedData.get(source.getServer()).refuseChanges(source)) {
+            return 0;
+        }
+        NationTaxes.collect(source.getServer());
+        run(source.getServer());
+        return Messages.success(source, "command.colony_nations.day.ran");
     }
 
     public static void run(MinecraftServer server) {
