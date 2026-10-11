@@ -29,10 +29,14 @@ public final class NationSavedData extends SavedData {
     private static final String PAYLOAD = "Payload";
     private static final String NOTICES = "Notices";
     private static final String LAST_UPKEEP_DAY = "LastUpkeepDay";
+    private static final String FREE_CITIES = "FreeCities";
+    private static final String OFFERS = "Offers";
 
     private final NationRegistry registry;
     private final TerritoryMap territory;
     private final List<PendingNotice> notices = new ArrayList<>();
+    private final List<FreeCity> freeCities = new ArrayList<>();
+    private final List<SecessionOffer> offers = new ArrayList<>();
     private final byte[] preservedPayload;
     private final int unreadVersion;
     private Long lastUpkeepDay;
@@ -67,6 +71,47 @@ public final class NationSavedData extends SavedData {
 
     public List<PendingNotice> notices() {
         return List.copyOf(notices);
+    }
+
+    public List<FreeCity> freeCities() {
+        return List.copyOf(freeCities);
+    }
+
+    public void addFreeCity(FreeCity city) {
+        freeCities.removeIf(existing -> existing.city().equals(city.city()));
+        freeCities.add(city);
+        setDirty();
+    }
+
+    public void removeFreeCity(com.mrzeyner.colonynations.nation.CityRef city) {
+        if (freeCities.removeIf(existing -> existing.city().equals(city))) {
+            setDirty();
+        }
+    }
+
+    public List<SecessionOffer> offers() {
+        return List.copyOf(offers);
+    }
+
+    public void addOffer(SecessionOffer offer) {
+        offers.removeIf(existing -> existing.city().equals(offer.city()));
+        offers.add(offer);
+        setDirty();
+    }
+
+    public SecessionOffer takeOffer(com.mrzeyner.colonynations.nation.CityRef city) {
+        SecessionOffer found = null;
+        for (SecessionOffer offer : offers) {
+            if (offer.city().equals(city)) {
+                found = offer;
+                break;
+            }
+        }
+        if (found != null) {
+            offers.remove(found);
+            setDirty();
+        }
+        return found;
     }
 
     /**
@@ -140,6 +185,8 @@ public final class NationSavedData extends SavedData {
             data = new NationSavedData(loaded.registry(), loaded.territory(), null, loaded.version());
         }
         data.notices.addAll(readNotices(tag));
+        data.freeCities.addAll(readFreeCities(tag));
+        data.offers.addAll(readOffers(tag));
         if (tag.contains(LAST_UPKEEP_DAY)) {
             data.lastUpkeepDay = tag.getLong(LAST_UPKEEP_DAY);
         }
@@ -151,6 +198,8 @@ public final class NationSavedData extends SavedData {
         byte[] payload = preservedPayload != null ? preservedPayload : NationCodec.write(registry, territory);
         tag.putByteArray(PAYLOAD, payload.clone());
         tag.put(NOTICES, writeNotices());
+        tag.put(FREE_CITIES, writeFreeCities());
+        tag.put(OFFERS, writeOffers());
         if (lastUpkeepDay != null) {
             tag.putLong(LAST_UPKEEP_DAY, lastUpkeepDay);
         }
@@ -193,5 +242,65 @@ public final class NationSavedData extends SavedData {
                     args));
         }
         return notices;
+    }
+
+    private ListTag writeFreeCities() {
+        ListTag list = new ListTag();
+        for (FreeCity city : freeCities) {
+            CompoundTag tag = new CompoundTag();
+            tag.putString("Dimension", city.city().dimension());
+            tag.putInt("ColonyId", city.city().colonyId());
+            tag.putString("Name", city.name());
+            tag.putInt("Color", city.color());
+            list.add(tag);
+        }
+        return list;
+    }
+
+    private static List<FreeCity> readFreeCities(CompoundTag tag) {
+        List<FreeCity> cities = new ArrayList<>();
+        ListTag list = tag.getList(FREE_CITIES, Tag.TAG_COMPOUND);
+        for (Tag entry : list) {
+            if (!(entry instanceof CompoundTag city)) {
+                continue;
+            }
+            cities.add(new FreeCity(
+                    new com.mrzeyner.colonynations.nation.CityRef(city.getString("Dimension"), city.getInt("ColonyId")),
+                    city.getString("Name"),
+                    city.getInt("Color")));
+        }
+        return cities;
+    }
+
+    private ListTag writeOffers() {
+        ListTag list = new ListTag();
+        for (SecessionOffer offer : offers) {
+            CompoundTag tag = new CompoundTag();
+            tag.putString("Dimension", offer.city().dimension());
+            tag.putInt("ColonyId", offer.city().colonyId());
+            tag.putString("From", offer.fromNation().toString());
+            tag.putString("To", offer.toNation().toString());
+            tag.putString("Name", offer.cityName());
+            tag.putLong("Day", offer.offerDay());
+            list.add(tag);
+        }
+        return list;
+    }
+
+    private static List<SecessionOffer> readOffers(CompoundTag tag) {
+        List<SecessionOffer> offers = new ArrayList<>();
+        ListTag list = tag.getList(OFFERS, Tag.TAG_COMPOUND);
+        for (Tag entry : list) {
+            if (!(entry instanceof CompoundTag offer)) {
+                continue;
+            }
+            offers.add(new SecessionOffer(
+                    new com.mrzeyner.colonynations.nation.CityRef(offer.getString("Dimension"), offer.getInt("ColonyId")),
+                    UUID.fromString(offer.getString("From")),
+                    UUID.fromString(offer.getString("To")),
+                    offer.getString("Name"),
+                    offer.getLong("Day")));
+        }
+        return offers;
     }
 }

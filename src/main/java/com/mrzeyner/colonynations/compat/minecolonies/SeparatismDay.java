@@ -31,6 +31,7 @@ public final class SeparatismDay {
     }
 
     public static void advance(MinecraftServer server) {
+        Secession.expire(server);
         NationSavedData data = NationSavedData.get(server);
         if (data.unreadable()) {
             return;
@@ -99,7 +100,11 @@ public final class SeparatismDay {
             tellEveryone(source.getServer(), data, updated, label);
         }
         if (crossing.independence()) {
-            // TODO(T21): the city breaks away when separatism reaches 100.
+            Secession.onIndependence(source.getServer(), updated, match.city, colony);
+        }
+        Nation still = data.registry().byId(match.nation.id()).orElse(null);
+        if (still == null || !still.cities().contains(match.city)) {
+            return 1;
         }
         return Messages.success(source, "command.colony_nations.separatism.set", label, colonyId, value);
     }
@@ -131,10 +136,11 @@ public final class SeparatismDay {
             tellEveryone(server, data, nation, label);
         }
         if (crossing.independence()) {
-            // TODO(T21): the city breaks away when separatism reaches 100.
+            Secession.onIndependence(server, nation, city, colony);
         }
-        if (Separatism.unrest(before) != Separatism.unrest(after)) {
-            refreshMap(server, nation, colony, city, before, after, gameTime);
+        Nation current = data.registry().byId(nation.id()).orElse(null);
+        if (current != null && current.cities().contains(city) && Separatism.unrest(before) != Separatism.unrest(after)) {
+            refreshMap(server, current, colony, city, before, after, gameTime);
         }
     }
 

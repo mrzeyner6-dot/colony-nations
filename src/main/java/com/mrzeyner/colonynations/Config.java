@@ -90,6 +90,10 @@ public final class Config {
             .comment("Separatism removed each day when happiness is at or above unrestThreshold.")
             .defineInRange("separatismDecay", 4, 0, 100);
 
+    public static final ModConfigSpec.IntValue SECESSION_JOIN_RADIUS = BUILDER
+            .comment("Chebyshev chunk distance from a breaking city's claim to another nation's land. That nation is asked to take the city only when its tax is also lower.")
+            .defineInRange("secessionJoinRadius", 8, 0, 128);
+
     static {
         BUILDER.pop();
     }

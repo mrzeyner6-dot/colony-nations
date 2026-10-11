@@ -22,6 +22,7 @@ import com.mrzeyner.colonynations.compat.minecolonies.NationDaily;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTaxCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTerritoryCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationUpkeep;
+import com.mrzeyner.colonynations.compat.minecolonies.Secession;
 import com.mrzeyner.colonynations.compat.minecolonies.SeparatismDay;
 import com.mrzeyner.colonynations.compat.minecolonies.TerritorySync;
 import com.mrzeyner.colonynations.compat.numismatics.NationTreasuryCommands;
@@ -83,6 +84,12 @@ public final class NationCommands {
                 .then(Commands.literal("annex").executes(NationTerritoryCommands::annex))
                 .then(Commands.literal("unannex").executes(NationTerritoryCommands::unannex))
                 .then(Commands.literal("territory").executes(NationTerritoryCommands::territory))
+                .then(Commands.literal("accept-city")
+                        .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
+                                .executes(Secession::accept)))
+                .then(Commands.literal("decline-city")
+                        .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
+                                .executes(Secession::decline)))
                 .then(Commands.literal("tax")
                         .executes(NationTaxCommands::show)
                         .then(Commands.literal("set")
@@ -113,7 +120,10 @@ public final class NationCommands {
                                 .then(Commands.literal("separatism")
                                         .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
                                                 .then(Commands.argument("value", IntegerArgumentType.integer(0, 100))
-                                                        .executes(SeparatismDay::set)))))));
+                                                        .executes(SeparatismDay::set))))
+                                .then(Commands.literal("secede")
+                                        .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
+                                                .executes(Secession::force))))));
     }
 
     private static int create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -165,6 +175,7 @@ public final class NationCommands {
         for (CityRef city : nation.cities()) {
             CitizenTaxHappiness.clear(MineColoniesCities.findByCity(city));
         }
+        Secession.dropNation(data, nation.id());
         TerritorySync.onDisband(source.getServer(), nation);
         data.registry().delete(nation.id());
         data.territory().releaseAll(nation.id());

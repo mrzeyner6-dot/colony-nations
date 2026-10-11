@@ -8,6 +8,7 @@ import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.IColonyManager;
 
 import com.mrzeyner.colonynations.ColonyNations;
+import com.mrzeyner.colonynations.data.FreeCity;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.economy.Separatism;
 import com.mrzeyner.colonynations.nation.CityRef;
@@ -44,6 +45,7 @@ public final class ColonyClaimTicker {
             CityRef city = MineColoniesCities.cityRef(colony);
             Nation nation = data.registry().byColony(city).orElse(null);
             if (nation == null) {
+                refreshFree(server, data, colony, city, gameTime);
                 continue;
             }
             String previousName = ColonyClaimCache.get().name(city);
@@ -81,6 +83,53 @@ public final class ColonyClaimTicker {
         if (changed) {
             data.setDirty();
         }
+    }
+
+    private static void refreshFree(
+            MinecraftServer server,
+            NationSavedData data,
+            IColony colony,
+            CityRef city,
+            long gameTime) {
+        FreeCity free = null;
+        for (FreeCity candidate : data.freeCities()) {
+            if (candidate.city().equals(city)) {
+                free = candidate;
+                break;
+            }
+        }
+        if (free == null) {
+            return;
+        }
+        String previousName = ColonyClaimCache.get().name(city);
+        Set<ChunkRef> before = ColonyClaimCache.get().peek(city);
+        ColonyClaimCache.get().refresh(colony, gameTime);
+        String name = ColonyClaimCache.get().name(city);
+        if (name.isBlank()) {
+            name = free.name();
+        }
+        Set<ChunkRef> after = ColonyClaimCache.get().peek(city);
+        boolean nameChanged = !name.equals(previousName);
+        if (!name.equals(free.name())) {
+            data.addFreeCity(new FreeCity(city, name, FreeCity.GRAY));
+        }
+        List<ChunkRef> show = new ArrayList<>();
+        List<ChunkRef> left = new ArrayList<>();
+        for (ChunkRef chunk : after) {
+            if (data.territory().owner(chunk).isPresent()) {
+                continue;
+            }
+            if (nameChanged || !before.contains(chunk)) {
+                show.add(chunk);
+            }
+        }
+        for (ChunkRef chunk : before) {
+            if (!after.contains(chunk)) {
+                left.add(chunk);
+            }
+        }
+        TerritorySync.broadcastFreeCity(server, city, name, show);
+        TerritorySync.reconcile(server, data, left, gameTime);
     }
 
     @SubscribeEvent

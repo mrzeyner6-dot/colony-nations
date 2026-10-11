@@ -84,6 +84,7 @@ public final class NationColonyEvents {
             return;
         }
         CityRef city = MineColoniesCities.cityRef(colony);
+        Secession.onColonyDeleted(server, data, city);
         Nation nation = data.registry().byColony(city).orElse(null);
         if (nation == null) {
             return;

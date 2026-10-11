@@ -142,6 +142,7 @@ public final class NationCityCommands {
             return Messages.event(source, "command.colony_nations.city.added", colony.getName(), colonyId, nation.name());
         }
         CitizenTaxHappiness.clear(colony);
+        Secession.dropOffer(data, city);
         TerritorySync.onCityLeft(source.getServer(), data, colony, source.getLevel().getGameTime());
         return Messages.success(source, "command.colony_nations.city.removed", colony.getName(), colonyId, nation.name());
     }

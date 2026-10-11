@@ -14,6 +14,7 @@ import com.minecolonies.api.colony.IColony;
 
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.Config;
+import com.mrzeyner.colonynations.data.FreeCity;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.economy.Separatism;
 import com.mrzeyner.colonynations.nation.CityRef;
@@ -75,7 +76,14 @@ public final class TerritorySync {
                     CityHit hit = entry.getValue();
                     described.put(
                             entry.getKey(),
-                            new PlotInfo(nation, TerritorySnapshotPayload.CITY, hit.colonyId, hit.name, hit.unrest));
+                            new PlotInfo(
+                                    nation.id(),
+                                    nation.name(),
+                                    nation.color(),
+                                    TerritorySnapshotPayload.CITY,
+                                    hit.colonyId,
+                                    hit.name,
+                                    hit.unrest));
                     byId.putIfAbsent(nation.id(), nation);
                 }
                 Set<ChunkRef> state = new HashSet<>();
@@ -92,18 +100,50 @@ public final class TerritorySync {
                 }
             }
         }
-        List<Nation> nations = new ArrayList<>(byId.values());
+        if (!data.unreadable()) {
+            for (FreeCity free : data.freeCities()) {
+                if (!dimension.equals(free.city().dimension())) {
+                    continue;
+                }
+                IColony colony = MineColoniesCities.findByCity(free.city());
+                if (colony == null) {
+                    continue;
+                }
+                UUID id = FreeCity.mapId(free.city());
+                String name = free.name().isBlank() ? (colony.getName() == null ? "" : colony.getName()) : free.name();
+                for (ChunkRef chunk : ColonyClaimCache.get().chunks(colony, gameTime)) {
+                    if (!dimension.equals(chunk.dimension()) || described.containsKey(chunk)) {
+                        continue;
+                    }
+                    described.put(
+                            chunk,
+                            new PlotInfo(id, name, FreeCity.GRAY, TerritorySnapshotPayload.CITY, colony.getID(), name, false));
+                    byId.putIfAbsent(id, null);
+                }
+            }
+        }
         Map<UUID, Integer> index = new HashMap<>();
         List<TerritorySnapshotPayload.NationPart> parts = new ArrayList<>();
-        for (int i = 0; i < nations.size(); i++) {
-            Nation nation = nations.get(i);
-            index.put(nation.id(), i);
+        for (Map.Entry<UUID, Nation> entry : byId.entrySet()) {
+            Nation nation = entry.getValue();
+            if (nation == null) {
+                continue;
+            }
+            index.put(nation.id(), parts.size());
             parts.add(new TerritorySnapshotPayload.NationPart(nation.id(), nation.name(), nation.color()));
+        }
+        for (Map.Entry<ChunkRef, PlotInfo> entry : described.entrySet()) {
+            PlotInfo info = entry.getValue();
+            if (index.containsKey(info.nationId())) {
+                continue;
+            }
+            index.put(info.nationId(), parts.size());
+            parts.add(new TerritorySnapshotPayload.NationPart(info.nationId(), info.nationName(), info.color()));
         }
         List<TerritorySnapshotPayload.PlotPart> plots = new ArrayList<>();
         for (Map.Entry<ChunkRef, PlotInfo> entry : described.entrySet()) {
             PlotInfo info = entry.getValue();
-            Integer nationIndex = index.get(info.nation.id());
+            Integer nationIndex = index.get(info.nationId());
             if (nationIndex == null) {
                 continue;
             }
@@ -141,6 +181,33 @@ public final class TerritorySync {
                             unrest));
         }
         send(server, byDimension);
+    }
+
+    /**
+     * Claim chunks of a free city, drawn in gray under a synthetic id that is not in the nation registry.
+     */
+    public static void broadcastFreeCity(MinecraftServer server, CityRef city, String placeName, Iterable<ChunkRef> chunks) {
+        UUID id = FreeCity.mapId(city);
+        String name = placeName == null ? "" : placeName;
+        Map<String, List<TerritoryDeltaPayload.Change>> byDimension = new HashMap<>();
+        for (ChunkRef chunk : chunks) {
+            byDimension.computeIfAbsent(chunk.dimension(), key -> new ArrayList<>())
+                    .add(TerritoryDeltaPayload.Change.plot(
+                            TerritoryDeltaPayload.CITY,
+                            chunk.x(),
+                            chunk.z(),
+                            id,
+                            name,
+                            FreeCity.GRAY,
+                            city.colonyId(),
+                            name,
+                            false));
+        }
+        send(server, byDimension);
+    }
+
+    public static void forgetNation(MinecraftServer server, UUID nationId) {
+        sendToAll(server, new TerritoryDeltaPayload("", List.of(TerritoryDeltaPayload.Change.forget(nationId))));
     }
 
     /**
@@ -284,9 +351,10 @@ public final class TerritorySync {
     private static PlotInfo fromLabel(Nation nation, PlotLabels.Label label) {
         if (label != null && label.kind() == PlotLabels.Kind.CORE) {
             int colonyId = label.city() == null ? -1 : label.city().colonyId();
-            return new PlotInfo(nation, TerritorySnapshotPayload.CORE, colonyId, label.name(), false);
+            return new PlotInfo(
+                    nation.id(), nation.name(), nation.color(), TerritorySnapshotPayload.CORE, colonyId, label.name(), false);
         }
-        return new PlotInfo(nation, TerritorySnapshotPayload.STATE, -1, "", false);
+        return new PlotInfo(nation.id(), nation.name(), nation.color(), TerritorySnapshotPayload.STATE, -1, "", false);
     }
 
     private static void sendToAll(MinecraftServer server, TerritoryDeltaPayload payload) {
@@ -350,7 +418,7 @@ public final class TerritorySync {
         }
     }
 
-    private record PlotInfo(Nation nation, byte kind, int colonyId, String placeName, boolean unrest) {
+    private record PlotInfo(UUID nationId, String nationName, int color, byte kind, int colonyId, String placeName, boolean unrest) {
     }
 
     private record CityHit(int colonyId, String name, boolean unrest) {
