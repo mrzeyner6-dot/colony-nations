@@ -19,6 +19,7 @@ import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.network.TerritoryDeltaPayload;
 import com.mrzeyner.colonynations.network.TerritorySnapshotPayload;
+import com.mrzeyner.colonynations.economy.Separatism;
 import com.mrzeyner.colonynations.territory.ChunkRef;
 import com.mrzeyner.colonynations.territory.NearestCity;
 import com.mrzeyner.colonynations.territory.PlotLabels;
@@ -72,7 +73,9 @@ public final class TerritorySync {
                         continue;
                     }
                     CityHit hit = entry.getValue();
-                    described.put(entry.getKey(), new PlotInfo(nation, TerritorySnapshotPayload.CITY, hit.colonyId, hit.name));
+                    described.put(
+                            entry.getKey(),
+                            new PlotInfo(nation, TerritorySnapshotPayload.CITY, hit.colonyId, hit.name, hit.unrest));
                     byId.putIfAbsent(nation.id(), nation);
                 }
                 Set<ChunkRef> state = new HashSet<>();
@@ -106,7 +109,7 @@ public final class TerritorySync {
             }
             ChunkRef chunk = entry.getKey();
             plots.add(new TerritorySnapshotPayload.PlotPart(
-                    chunk.x(), chunk.z(), nationIndex, info.kind, info.colonyId, info.placeName));
+                    chunk.x(), chunk.z(), nationIndex, info.kind, info.colonyId, info.placeName, info.unrest));
         }
         PacketDistributor.sendToPlayer(player, new TerritorySnapshotPayload(dimension, parts, plots));
     }
@@ -119,6 +122,8 @@ public final class TerritorySync {
         String name = placeName == null ? "" : placeName;
         Map<String, List<TerritoryDeltaPayload.Change>> byDimension = new HashMap<>();
         for (ChunkRef chunk : chunks) {
+            boolean unrest = Separatism.stage(nation.separatism(new CityRef(chunk.dimension(), colonyId)))
+                    == Separatism.Stage.UNREST;
             byDimension.computeIfAbsent(chunk.dimension(), key -> new ArrayList<>())
                     .add(TerritoryDeltaPayload.Change.plot(
                             TerritoryDeltaPayload.CITY,
@@ -128,7 +133,8 @@ public final class TerritorySync {
                             nation.name(),
                             nation.color(),
                             colonyId,
-                            name));
+                            name,
+                            unrest));
         }
         send(server, byDimension);
     }
@@ -206,7 +212,8 @@ public final class TerritorySync {
                             city.nation.name(),
                             city.nation.color(),
                             city.colonyId,
-                            city.name));
+                            city.name,
+                            city.unrest));
                     continue;
                 }
                 Nation stateNation = data.territory().owner(chunk).flatMap(data.registry()::byId).orElse(null);
@@ -226,6 +233,7 @@ public final class TerritorySync {
     }
 
     public static void onCityLeft(MinecraftServer server, NationSavedData data, IColony colony, long gameTime) {
+        NationTaxHappiness.clear(colony);
         Set<ChunkRef> claims = new HashSet<>(ColonyClaimCache.get().chunks(colony, gameTime));
         ColonyClaimCache.get().invalidate(MineColoniesCities.cityRef(colony));
         reconcile(server, data, claims, gameTime);
@@ -233,6 +241,7 @@ public final class TerritorySync {
 
     public static void onDisband(MinecraftServer server, Nation nation) {
         for (CityRef city : nation.cities()) {
+            NationTaxHappiness.clear(MineColoniesCities.findByCity(city));
             ColonyClaimCache.get().invalidate(city);
         }
         sendToAll(server, new TerritoryDeltaPayload("", List.of(TerritoryDeltaPayload.Change.forget(nation.id()))));
@@ -265,9 +274,9 @@ public final class TerritorySync {
     private static PlotInfo fromLabel(Nation nation, PlotLabels.Label label) {
         if (label != null && label.kind() == PlotLabels.Kind.CORE) {
             int colonyId = label.city() == null ? -1 : label.city().colonyId();
-            return new PlotInfo(nation, TerritorySnapshotPayload.CORE, colonyId, label.name());
+            return new PlotInfo(nation, TerritorySnapshotPayload.CORE, colonyId, label.name(), false);
         }
-        return new PlotInfo(nation, TerritorySnapshotPayload.STATE, -1, "");
+        return new PlotInfo(nation, TerritorySnapshotPayload.STATE, -1, "", false);
     }
 
     private static void sendToAll(MinecraftServer server, TerritoryDeltaPayload payload) {
@@ -280,7 +289,7 @@ public final class TerritorySync {
             CityFacts facts = facts(nation, dimension, gameTime);
             for (Map.Entry<ChunkRef, CityHit> entry : facts.hits.entrySet()) {
                 CityHit hit = entry.getValue();
-                owners.putIfAbsent(entry.getKey(), new CityOwner(nation, hit.colonyId, hit.name));
+                owners.putIfAbsent(entry.getKey(), new CityOwner(nation, hit.colonyId, hit.name, hit.unrest));
             }
         }
         return owners;
@@ -305,8 +314,9 @@ public final class TerritorySync {
             anchors.add(new NearestCity.Anchor(ref, center.getX() >> 4, center.getZ() >> 4));
             String name = colony.getName() == null ? "" : colony.getName();
             names.put(ref, name);
+            boolean unrest = Separatism.stage(nation.separatism(ref)) == Separatism.Stage.UNREST;
             for (ChunkRef chunk : chunks) {
-                hits.putIfAbsent(chunk, new CityHit(colony.getID(), name));
+                hits.putIfAbsent(chunk, new CityHit(colony.getID(), name, unrest));
             }
         }
         return new CityFacts(claims, anchors, names, hits);
@@ -330,13 +340,13 @@ public final class TerritorySync {
         }
     }
 
-    private record PlotInfo(Nation nation, byte kind, int colonyId, String placeName) {
+    private record PlotInfo(Nation nation, byte kind, int colonyId, String placeName, boolean unrest) {
     }
 
-    private record CityHit(int colonyId, String name) {
+    private record CityHit(int colonyId, String name, boolean unrest) {
     }
 
-    private record CityOwner(Nation nation, int colonyId, String name) {
+    private record CityOwner(Nation nation, int colonyId, String name, boolean unrest) {
     }
 
     private record CityFacts(

@@ -43,7 +43,8 @@ public final class NationRegistry {
                 0L,
                 createdGameTime,
                 taxRate,
-                null);
+                null,
+                Map.of());
         index(nation);
         return nation;
     }
@@ -118,6 +119,12 @@ public final class NationRegistry {
 
     public Nation setTaxRate(UUID nationId, int taxRate, long changedOnDay) {
         Nation updated = requireNation(nationId).withTaxRate(taxRate, changedOnDay);
+        nations.put(nationId, updated);
+        return updated;
+    }
+
+    public Nation setSeparatism(UUID nationId, CityRef city, double value) {
+        Nation updated = requireNation(nationId).withSeparatism(city, value);
         nations.put(nationId, updated);
         return updated;
     }

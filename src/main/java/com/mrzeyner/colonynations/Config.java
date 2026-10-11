@@ -66,6 +66,34 @@ public final class Config {
             .comment("Highest tax rate the owner can set, in spurs per adult citizen per day.")
             .defineInRange("maxTaxRate", 6, 0, 1000);
 
+    public static final ModConfigSpec.IntValue TAX_NEUTRAL_RATE = BUILDER
+            .comment("Tax rate whose happiness factor is 1. Rates below this move toward taxHappinessBonus.")
+            .defineInRange("taxNeutralRate", 2, 0, 1000);
+
+    public static final ModConfigSpec.DoubleValue TAX_HAPPINESS_BONUS = BUILDER
+            .comment("Happiness factor at tax rate 0. MineColonies skips a factor of exactly 1.")
+            .defineInRange("taxHappinessBonus", 1.15D, 0.0D, 10.0D);
+
+    public static final ModConfigSpec.DoubleValue TAX_HAPPINESS_PENALTY = BUILDER
+            .comment("Happiness factor at maxTaxRate.")
+            .defineInRange("taxHappinessPenalty", 0.70D, 0.0D, 10.0D);
+
+    public static final ModConfigSpec.DoubleValue TAX_HAPPINESS_WEIGHT = BUILDER
+            .comment("Weight of the tax happiness modifier. MineColonies averages factors by weight.")
+            .defineInRange("taxHappinessWeight", 1.0D, 0.0D, 100.0D);
+
+    public static final ModConfigSpec.DoubleValue UNREST_THRESHOLD = BUILDER
+            .comment("City happiness below this, on the 0–10 scale, raises separatism.")
+            .defineInRange("unrestThreshold", 5.0D, 0.0D, 10.0D);
+
+    public static final ModConfigSpec.DoubleValue SEPARATISM_GROWTH = BUILDER
+            .comment("Separatism gained per point of happiness below unrestThreshold.")
+            .defineInRange("separatismGrowth", 6.0D, 0.0D, 1000.0D);
+
+    public static final ModConfigSpec.DoubleValue SEPARATISM_DECAY = BUILDER
+            .comment("Separatism lost per day when happiness is at or above unrestThreshold.")
+            .defineInRange("separatismDecay", 4.0D, 0.0D, 1000.0D);
+
     static {
         BUILDER.pop();
     }

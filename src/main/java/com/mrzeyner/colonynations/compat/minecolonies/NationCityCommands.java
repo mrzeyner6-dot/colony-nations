@@ -13,6 +13,7 @@ import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.IColonyManager;
 
 import com.mrzeyner.colonynations.command.Messages;
+import com.mrzeyner.colonynations.economy.Separatism;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.CityRef;
 import com.mrzeyner.colonynations.nation.Nation;
@@ -91,6 +92,9 @@ public final class NationCityCommands {
                     colonyLabel(city),
                     city.colonyId(),
                     city.dimension(),
+                    NationTaxHappiness.text(city),
+                    Separatism.format(nation.separatism(city)),
+                    Messages.plain(Separatism.labelKey(Separatism.stage(nation.separatism(city)))),
                     Messages.plain(markKey));
         }
         return 1;

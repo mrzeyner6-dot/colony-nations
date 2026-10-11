@@ -90,6 +90,7 @@ public final class NationTaxCommands {
         }
         Nation updated = data.registry().setTaxRate(nation.id(), rate, today);
         data.setDirty();
+        NationTaxHappiness.refresh(source.getServer(), updated);
         return Messages.success(source, "command.colony_nations.tax.set", updated.name(), rate);
     }
 

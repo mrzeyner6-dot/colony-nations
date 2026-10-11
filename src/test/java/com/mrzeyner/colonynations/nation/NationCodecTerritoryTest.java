@@ -64,6 +64,28 @@ class NationCodecTerritoryTest {
     }
 
     @Test
+    void version4KeepsTaxAndStartsSeparatismAtZero() {
+        NationRegistry registry = new NationRegistry();
+        Nation rome = registry.create("Rome", UUID.randomUUID(), 1, 1L);
+        CityRef city = new CityRef("minecraft:overworld", 4);
+        registry.addColony(rome.id(), city);
+        registry.setTaxRate(rome.id(), 5, 3L);
+        registry.setSeparatism(rome.id(), city, 40.0D);
+
+        NationCodec.Loaded loaded = NationCodec.load(NationCodec.writeVersion4(registry, new TerritoryMap()));
+
+        assertEquals(4, loaded.version());
+        Nation migrated = loaded.registry().byId(rome.id()).orElseThrow();
+        assertEquals(5, migrated.taxRate());
+        assertEquals(3L, migrated.lastTaxChangeDay());
+        assertEquals(0.0D, migrated.separatism(city), 0.0D);
+
+        NationCodec.Loaded again = NationCodec.load(NationCodec.write(loaded));
+        assertEquals(NationCodec.VERSION, again.version());
+        assertEquals(migrated, again.registry().byId(rome.id()).orElseThrow());
+    }
+
+    @Test
     void territoryRoundTripKeepsClaims() {
         NationRegistry registry = new NationRegistry();
         Nation rome = registry.create("Rome", UUID.randomUUID(), 1, 1L);

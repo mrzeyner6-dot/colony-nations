@@ -176,6 +176,7 @@ class NationRegistryTest {
         Nation empty = registry.create("Gaul", UUID.randomUUID(), 0, 7L);
         registry.setColor(empty.id(), 0xABCDEF);
         registry.setTaxRate(rome.id(), 5, 12L);
+        registry.setSeparatism(rome.id(), city(10), 42.5D);
 
         NationRegistry loaded = NationCodec.read(NationCodec.write(registry));
 
@@ -189,6 +190,8 @@ class NationRegistryTest {
         assertEquals(100L, loaded.byId(rome.id()).orElseThrow().createdGameTime());
         assertEquals(5, loaded.byId(rome.id()).orElseThrow().taxRate());
         assertEquals(12L, loaded.byId(rome.id()).orElseThrow().lastTaxChangeDay());
+        assertEquals(42.5D, loaded.byId(rome.id()).orElseThrow().separatism(city(10)), 0.0D);
+        assertEquals(0.0D, loaded.byId(empty.id()).orElseThrow().separatism(city(10)), 0.0D);
         assertEquals(Nation.DEFAULT_TAX_RATE, loaded.byId(empty.id()).orElseThrow().taxRate());
         assertEquals(null, loaded.byId(empty.id()).orElseThrow().lastTaxChangeDay());
         assertEquals(2, loaded.all().size());

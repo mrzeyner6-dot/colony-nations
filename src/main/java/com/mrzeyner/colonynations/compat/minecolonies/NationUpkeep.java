@@ -30,7 +30,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
- * Daily cycle: taxes, then state-land upkeep, once per Minecraft day.
+ * Daily cycle: taxes, upkeep, tax happiness, then separatism, once per Minecraft day.
  * Offline owners receive the lines when they next log in.
  */
 @EventBusSubscriber(modid = ColonyNations.MOD_ID)
@@ -52,8 +52,7 @@ public final class NationUpkeep {
             data.setLastUpkeepDay(due.recordedDay());
         }
         if (due.charge()) {
-            NationTaxes.collect(server);
-            run(server);
+            runDay(server);
         }
     }
 
@@ -79,16 +78,22 @@ public final class NationUpkeep {
     }
 
     /**
-     * Operator command. Runs taxes and upkeep once and does not move {@code lastUpkeepDay}.
+     * Operator command. Runs taxes, upkeep, happiness, then separatism once and does not move {@code lastUpkeepDay}.
      */
     public static int runDay(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack source = ctx.getSource();
         if (NationSavedData.get(source.getServer()).refuseChanges(source)) {
             return 0;
         }
-        NationTaxes.collect(source.getServer());
-        run(source.getServer());
+        runDay(source.getServer());
         return Messages.success(source, "command.colony_nations.day.ran");
+    }
+
+    private static void runDay(MinecraftServer server) {
+        NationTaxes.collect(server);
+        run(server);
+        NationTaxHappiness.refresh(server);
+        NationSeparatism.advance(server);
     }
 
     public static void run(MinecraftServer server) {

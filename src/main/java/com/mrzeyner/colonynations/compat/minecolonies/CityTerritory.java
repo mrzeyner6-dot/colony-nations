@@ -38,6 +38,7 @@ public final class CityTerritory {
         String name = colony.getName() == null ? "" : colony.getName();
         TerritorySync.broadcastCity(server, nation, claim, colony.getID(), name);
         TerritorySync.broadcastState(server, data, nation, ring, gameTime);
+        NationTaxHappiness.refresh(server, nation);
     }
 
     /**

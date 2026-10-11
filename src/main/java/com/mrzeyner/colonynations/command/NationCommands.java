@@ -17,6 +17,8 @@ import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.compat.minecolonies.NationCityCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTaxCommands;
+import com.mrzeyner.colonynations.compat.minecolonies.NationSeparatism;
+import com.mrzeyner.colonynations.compat.minecolonies.NationTaxHappiness;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTerritoryCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationUpkeep;
 import com.mrzeyner.colonynations.economy.Tax;
@@ -101,7 +103,8 @@ public final class NationCommands {
                         .then(Commands.literal("upkeep")
                                 .then(Commands.literal("run").executes(NationUpkeep::runCommand)))
                         .then(Commands.literal("day")
-                                .then(Commands.literal("run").executes(NationUpkeep::runDay)))));
+                                .then(Commands.literal("run").executes(NationUpkeep::runDay)))
+                        .then(NationSeparatism.adminBranch())));
     }
 
     private static int create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -221,6 +224,15 @@ public final class NationCommands {
         Messages.line(source, "command.colony_nations.info.capital", capitalLabel(nation));
         Messages.line(source, "command.colony_nations.info.colonies", coloniesLabel(nation));
         Messages.line(source, "command.colony_nations.info.treasury", nation.treasury());
+        List<CityRef> cities = new ArrayList<>(nation.cities());
+        cities.sort(Comparator.comparing(CityRef::dimension).thenComparingInt(CityRef::colonyId));
+        for (CityRef city : cities) {
+            Messages.line(
+                    source,
+                    "command.colony_nations.info.happiness",
+                    cityLabel(city),
+                    NationTaxHappiness.text(city));
+        }
         return 1;
     }
 
