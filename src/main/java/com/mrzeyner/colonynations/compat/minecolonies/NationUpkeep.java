@@ -44,6 +44,10 @@ public final class NationUpkeep {
         }
         NationSavedData data = NationSavedData.get(player.server);
         for (PendingNotice notice : data.takeNotices(player.getUUID())) {
+            if ("command.colony_nations.secession.offer".equals(notice.key())
+                    && Secession.replayOffer(player.createCommandSourceStack(), notice.args())) {
+                continue;
+            }
             Object[] args = notice.args().toArray();
             if (notice.alarm()) {
                 Messages.error(player.createCommandSourceStack(), notice.key(), args);

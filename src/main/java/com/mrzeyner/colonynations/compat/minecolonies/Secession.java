@@ -8,7 +8,6 @@ import java.util.UUID;
 
 import com.minecolonies.api.colony.IColony;
 
-import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
@@ -29,11 +28,10 @@ import com.mrzeyner.colonynations.territory.SecessionLand;
 import com.mrzeyner.colonynations.territory.Upkeep;
 
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.Component;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.Level;
 
 /**
  * A city at separatism 100 asks a lower-tax neighbour to take it in, or becomes a free city.
@@ -123,40 +121,43 @@ public final class Secession {
         }
     }
 
-    public static int accept(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
-        return answer(ctx, true);
+    public static int accept(CommandContext<CommandSourceStack> ctx, String raw) throws CommandSyntaxException {
+        return answer(ctx, raw, true);
     }
 
-    public static int decline(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
-        return answer(ctx, false);
+    public static int decline(CommandContext<CommandSourceStack> ctx, String raw) throws CommandSyntaxException {
+        return answer(ctx, raw, false);
     }
 
-    public static int force(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+    public static boolean replayOffer(CommandSourceStack source, List<String> args) {
+        if (args.size() < 3) {
+            return false;
+        }
+        String id = args.get(2);
+        Messages.info(source, OFFER, args.get(0), args.get(1), acceptButton(id), declineButton(id));
+        return true;
+    }
+
+    public static int force(CommandContext<CommandSourceStack> ctx, String raw) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
-        NationSavedData data = NationSavedData.get(source.getServer());
-        if (data.refuseChanges(source)) {
+        CityArguments.Hit hit = CityArguments.resolve(source, raw, CityArguments.Pool.MEMBER);
+        if (hit == null || hit.nation() == null) {
             return 0;
         }
-        int colonyId = IntegerArgumentType.getInteger(ctx, "colonyId");
-        ResourceKey<Level> prefer = source.getEntity() instanceof ServerPlayer player ? player.level().dimension() : null;
-        Member member = findMember(data, colonyId, prefer);
-        if (member == null) {
-            return Messages.error(source, "command.colony_nations.city.unknown", colonyId);
-        }
-        if (member.city.equals(member.nation.capital())) {
+        NationSavedData data = NationSavedData.get(source.getServer());
+        if (hit.city().equals(hit.nation().capital())) {
             return Messages.error(source, "command.colony_nations.secession.capital");
         }
-        if (pending(data, member.city)) {
-            return Messages.error(source, "command.colony_nations.secession.pending", colonyId);
+        if (pending(data, hit.city())) {
+            return Messages.error(source, "command.colony_nations.secession.pending", hit.colonyId());
         }
-        IColony colony = MineColoniesCities.findByCity(member.city);
-        String label = label(colony, member.city);
-        data.registry().setSeparatism(member.nation.id(), member.city, Separatism.MAX);
+        IColony colony = hit.colony() != null ? hit.colony() : MineColoniesCities.findByCity(hit.city());
+        data.registry().setSeparatism(hit.nation().id(), hit.city(), Separatism.MAX);
         data.setDirty();
-        Nation current = data.registry().byId(member.nation.id()).orElse(member.nation);
-        boolean offered = breakAway(source.getServer(), data, current, member.city, colony);
+        Nation current = data.registry().byId(hit.nation().id()).orElse(hit.nation());
+        boolean offered = breakAway(source.getServer(), data, current, hit.city(), colony);
         if (offered || !(source.getEntity() instanceof ServerPlayer)) {
-            return Messages.success(source, "command.colony_nations.secession.forced", label, colonyId);
+            return Messages.success(source, "command.colony_nations.secession.forced", hit.label(), hit.colonyId());
         }
         return 1;
     }
@@ -186,34 +187,37 @@ public final class Secession {
         return false;
     }
 
-    private static int answer(CommandContext<CommandSourceStack> ctx, boolean accept) throws CommandSyntaxException {
+    private static int answer(CommandContext<CommandSourceStack> ctx, String raw, boolean accept) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
         ServerPlayer player = source.getEntity() instanceof ServerPlayer serverPlayer ? serverPlayer : null;
         if (player == null) {
             return Messages.error(source, "command.colony_nations.players_only");
         }
-        NationSavedData data = NationSavedData.get(source.getServer());
-        if (data.refuseChanges(source)) {
+        CityArguments.Hit hit = CityArguments.resolve(source, raw, CityArguments.Pool.OFFER);
+        if (hit == null) {
             return 0;
         }
-        Nation mine = data.registry().byOwner(player.getUUID()).orElse(null);
-        if (mine == null) {
-            return Messages.error(source, "command.colony_nations.info.none");
+        NationSavedData data = NationSavedData.get(source.getServer());
+        Nation mine = hit.nation();
+        SecessionOffer offer = null;
+        for (SecessionOffer candidate : data.offers()) {
+            if (candidate.city().equals(hit.city()) && mine.id().equals(candidate.toNation())) {
+                offer = candidate;
+                break;
+            }
         }
-        int colonyId = IntegerArgumentType.getInteger(ctx, "colonyId");
-        SecessionOffer offer = findOffer(data, mine.id(), colonyId, player.level().dimension());
         if (offer == null) {
-            return Messages.error(source, "command.colony_nations.secession.no_offer", colonyId);
+            return Messages.error(source, "command.colony_nations.secession.no_offer", hit.colonyId());
         }
         Nation from = data.registry().byId(offer.fromNation()).orElse(null);
         if (from == null || !from.cities().contains(offer.city())) {
             data.takeOffer(offer.city());
-            return Messages.error(source, "command.colony_nations.city.unknown", colonyId);
+            return Messages.error(source, "command.colony_nations.city.unknown", hit.colonyId());
         }
         IColony colony = MineColoniesCities.findByCity(offer.city());
         if (colony == null) {
             data.takeOffer(offer.city());
-            return Messages.error(source, "command.colony_nations.city.unknown", colonyId);
+            return Messages.error(source, "command.colony_nations.city.unknown", hit.colonyId());
         }
         data.takeOffer(offer.city());
         if (accept) {
@@ -338,7 +342,7 @@ public final class Secession {
             data.addNotice(new PendingNotice(target.owner(), false, OFFER, List.of(cityName, target.name(), id, id)));
             return;
         }
-        Messages.info(owner.createCommandSourceStack(), OFFER, cityName, target.name(), colonyId, colonyId);
+        Messages.info(owner.createCommandSourceStack(), OFFER, cityName, target.name(), acceptButton(id), declineButton(id));
     }
 
     private static void tellEveryone(
@@ -359,6 +363,14 @@ public final class Secession {
         }
     }
 
+    private static Component acceptButton(String colonyId) {
+        return Messages.run("command.colony_nations.secession.accept", "/nation accept-city " + colonyId);
+    }
+
+    private static Component declineButton(String colonyId) {
+        return Messages.run("command.colony_nations.secession.decline", "/nation decline-city " + colonyId);
+    }
+
     private static boolean pending(NationSavedData data, CityRef city) {
         for (SecessionOffer offer : data.offers()) {
             if (offer.city().equals(city)) {
@@ -366,66 +378,6 @@ public final class Secession {
             }
         }
         return false;
-    }
-
-    private static SecessionOffer findOffer(
-            NationSavedData data,
-            UUID toNation,
-            int colonyId,
-            ResourceKey<Level> prefer) {
-        List<SecessionOffer> matches = new ArrayList<>();
-        for (SecessionOffer offer : data.offers()) {
-            if (toNation.equals(offer.toNation()) && offer.city().colonyId() == colonyId) {
-                matches.add(offer);
-            }
-        }
-        if (matches.size() == 1) {
-            return matches.get(0);
-        }
-        if (prefer == null) {
-            return null;
-        }
-        String dimension = prefer.location().toString();
-        SecessionOffer found = null;
-        for (SecessionOffer offer : matches) {
-            if (!dimension.equals(offer.city().dimension())) {
-                continue;
-            }
-            if (found != null) {
-                return null;
-            }
-            found = offer;
-        }
-        return found;
-    }
-
-    private static Member findMember(NationSavedData data, int colonyId, ResourceKey<Level> prefer) {
-        List<Member> matches = new ArrayList<>();
-        for (Nation nation : data.registry().all()) {
-            for (CityRef city : nation.cities()) {
-                if (city.colonyId() == colonyId) {
-                    matches.add(new Member(nation, city));
-                }
-            }
-        }
-        if (matches.size() == 1) {
-            return matches.get(0);
-        }
-        if (prefer == null) {
-            return null;
-        }
-        String dimension = prefer.location().toString();
-        Member found = null;
-        for (Member member : matches) {
-            if (!dimension.equals(member.city.dimension())) {
-                continue;
-            }
-            if (found != null) {
-                return null;
-            }
-            found = member;
-        }
-        return found;
     }
 
     private static Set<ChunkRef> claimOf(IColony colony, long gameTime) {
@@ -444,8 +396,5 @@ public final class Secession {
 
     private static long day(MinecraftServer server) {
         return server.overworld().getDayTime() / Upkeep.TICKS_PER_DAY;
-    }
-
-    private record Member(Nation nation, CityRef city) {
     }
 }

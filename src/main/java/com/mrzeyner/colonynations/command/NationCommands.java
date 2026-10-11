@@ -15,6 +15,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.Config;
+import com.mrzeyner.colonynations.compat.minecolonies.CityArguments;
 import com.mrzeyner.colonynations.compat.minecolonies.CitizenTaxHappiness;
 import com.mrzeyner.colonynations.compat.minecolonies.MineColoniesCities;
 import com.mrzeyner.colonynations.compat.minecolonies.NationCityCommands;
@@ -71,25 +72,35 @@ public final class NationCommands {
                 .then(Commands.literal("list").executes(NationCommands::list))
                 .then(Commands.literal("city")
                         .then(Commands.literal("add")
-                                .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
-                                        .executes(NationCityCommands::add)))
+                                .executes(ctx -> NationCityCommands.add(ctx, null))
+                                .then(Commands.argument("city", StringArgumentType.string())
+                                        .suggests((ctx, builder) -> CityArguments.suggest(ctx.getSource(), builder, CityArguments.Pool.OWNED))
+                                        .executes(ctx -> NationCityCommands.add(ctx, StringArgumentType.getString(ctx, "city")))))
                         .then(Commands.literal("remove")
-                                .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
-                                        .executes(NationCityCommands::remove)))
+                                .executes(ctx -> NationCityCommands.remove(ctx, null))
+                                .then(Commands.argument("city", StringArgumentType.string())
+                                        .suggests((ctx, builder) -> CityArguments.suggest(ctx.getSource(), builder, CityArguments.Pool.NATION))
+                                        .executes(ctx -> NationCityCommands.remove(ctx, StringArgumentType.getString(ctx, "city")))))
                         .then(Commands.literal("list").executes(NationCityCommands::list)))
                 .then(Commands.literal("capital")
-                        .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
-                                .executes(NationCityCommands::capital)))
+                        .executes(ctx -> NationCityCommands.capital(ctx, null))
+                        .then(Commands.argument("city", StringArgumentType.string())
+                                .suggests((ctx, builder) -> CityArguments.suggest(ctx.getSource(), builder, CityArguments.Pool.NATION))
+                                .executes(ctx -> NationCityCommands.capital(ctx, StringArgumentType.getString(ctx, "city")))))
                 .then(NationTreasuryCommands.branch())
                 .then(Commands.literal("annex").executes(NationTerritoryCommands::annex))
                 .then(Commands.literal("unannex").executes(NationTerritoryCommands::unannex))
                 .then(Commands.literal("territory").executes(NationTerritoryCommands::territory))
                 .then(Commands.literal("accept-city")
-                        .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
-                                .executes(Secession::accept)))
+                        .executes(ctx -> Secession.accept(ctx, null))
+                        .then(Commands.argument("city", StringArgumentType.string())
+                                .suggests((ctx, builder) -> CityArguments.suggest(ctx.getSource(), builder, CityArguments.Pool.OFFER))
+                                .executes(ctx -> Secession.accept(ctx, StringArgumentType.getString(ctx, "city")))))
                 .then(Commands.literal("decline-city")
-                        .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
-                                .executes(Secession::decline)))
+                        .executes(ctx -> Secession.decline(ctx, null))
+                        .then(Commands.argument("city", StringArgumentType.string())
+                                .suggests((ctx, builder) -> CityArguments.suggest(ctx.getSource(), builder, CityArguments.Pool.OFFER))
+                                .executes(ctx -> Secession.decline(ctx, StringArgumentType.getString(ctx, "city")))))
                 .then(Commands.literal("tax")
                         .executes(NationTaxCommands::show)
                         .then(Commands.literal("set")
@@ -118,12 +129,21 @@ public final class NationCommands {
                                 .then(Commands.literal("run").executes(NationDaily::runCommand)))
                         .then(Commands.literal("city")
                                 .then(Commands.literal("separatism")
-                                        .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
+                                        .then(Commands.argument("value", IntegerArgumentType.integer(0, 100))
+                                                .executes(ctx -> SeparatismDay.set(ctx, null)))
+                                        .then(Commands.argument("city", StringArgumentType.string())
+                                                .suggests((ctx, builder) -> CityArguments.suggest(
+                                                        ctx.getSource(), builder, CityArguments.Pool.MEMBER))
                                                 .then(Commands.argument("value", IntegerArgumentType.integer(0, 100))
-                                                        .executes(SeparatismDay::set))))
+                                                        .executes(ctx -> SeparatismDay.set(
+                                                                ctx, StringArgumentType.getString(ctx, "city"))))))
                                 .then(Commands.literal("secede")
-                                        .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
-                                                .executes(Secession::force))))));
+                                        .executes(ctx -> Secession.force(ctx, null))
+                                        .then(Commands.argument("city", StringArgumentType.string())
+                                                .suggests((ctx, builder) -> CityArguments.suggest(
+                                                        ctx.getSource(), builder, CityArguments.Pool.MEMBER))
+                                                .executes(ctx -> Secession.force(
+                                                        ctx, StringArgumentType.getString(ctx, "city"))))))));
     }
 
     private static int create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {

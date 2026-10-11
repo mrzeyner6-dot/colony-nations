@@ -18,10 +18,8 @@ import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.territory.ChunkRef;
 
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.Level;
 
 /**
  * Daily separatism step, and the operator command that sets a city's score.
@@ -69,28 +67,22 @@ public final class SeparatismDay {
         }
     }
 
-    public static int set(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+    public static int set(CommandContext<CommandSourceStack> ctx, String raw) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
-        NationSavedData data = NationSavedData.get(source.getServer());
-        if (data.refuseChanges(source)) {
+        int value = IntegerArgumentType.getInteger(ctx, "value");
+        CityArguments.Hit hit = CityArguments.resolve(source, raw, CityArguments.Pool.MEMBER);
+        if (hit == null || hit.nation() == null) {
             return 0;
         }
-        int colonyId = IntegerArgumentType.getInteger(ctx, "colonyId");
-        int value = IntegerArgumentType.getInteger(ctx, "value");
-        ResourceKey<Level> prefer = source.getEntity() instanceof ServerPlayer player ? player.level().dimension() : null;
-        Match match = find(data, colonyId, prefer);
-        if (match == null) {
-            return Messages.error(source, "command.colony_nations.city.unknown", colonyId);
-        }
-        int before = match.nation.separatism(match.city);
-        Nation updated = data.registry().setSeparatism(match.nation.id(), match.city, value);
+        NationSavedData data = NationSavedData.get(source.getServer());
+        int colonyId = hit.colonyId();
+        int before = hit.nation().separatism(hit.city());
+        Nation updated = data.registry().setSeparatism(hit.nation().id(), hit.city(), value);
         data.setDirty();
-        IColony colony = MineColoniesCities.findByCity(match.city);
-        String label = colony == null || colony.getName() == null || colony.getName().isBlank()
-                ? "#" + colonyId
-                : colony.getName();
+        IColony colony = hit.colony() != null ? hit.colony() : MineColoniesCities.findByCity(hit.city());
+        String label = hit.label();
         if (colony != null) {
-            refreshMap(source.getServer(), updated, colony, match.city, before, value, source.getServer().overworld().getGameTime());
+            refreshMap(source.getServer(), updated, colony, hit.city(), before, value, source.getServer().overworld().getGameTime());
         }
         Separatism.Crossing crossing = Separatism.crossing(before, value);
         if (crossing.unrest() && colony != null) {
@@ -100,10 +92,10 @@ public final class SeparatismDay {
             tellEveryone(source.getServer(), data, updated, label);
         }
         if (crossing.independence()) {
-            Secession.onIndependence(source.getServer(), updated, match.city, colony);
+            Secession.onIndependence(source.getServer(), updated, hit.city(), colony);
         }
-        Nation still = data.registry().byId(match.nation.id()).orElse(null);
-        if (still == null || !still.cities().contains(match.city)) {
+        Nation still = data.registry().byId(hit.nation().id()).orElse(null);
+        if (still == null || !still.cities().contains(hit.city())) {
             return 1;
         }
         return Messages.success(source, "command.colony_nations.separatism.set", label, colonyId, value);
@@ -186,37 +178,5 @@ public final class SeparatismDay {
         if (!ownerOnline) {
             data.addNotice(new PendingNotice(nation.owner(), false, key, List.of(city, nation.name())));
         }
-    }
-
-    private static Match find(NationSavedData data, int colonyId, ResourceKey<Level> prefer) {
-        List<Match> matches = new ArrayList<>();
-        for (Nation nation : data.registry().all()) {
-            for (CityRef city : nation.cities()) {
-                if (city.colonyId() == colonyId) {
-                    matches.add(new Match(nation, city));
-                }
-            }
-        }
-        if (matches.size() == 1) {
-            return matches.get(0);
-        }
-        if (prefer == null) {
-            return null;
-        }
-        String dimension = prefer.location().toString();
-        Match found = null;
-        for (Match match : matches) {
-            if (!dimension.equals(match.city.dimension())) {
-                continue;
-            }
-            if (found != null) {
-                return null;
-            }
-            found = match;
-        }
-        return found;
-    }
-
-    private record Match(Nation nation, CityRef city) {
     }
 }

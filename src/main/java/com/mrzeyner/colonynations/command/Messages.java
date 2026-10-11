@@ -3,7 +3,9 @@ package com.mrzeyner.colonynations.command;
 import com.mrzeyner.colonynations.Config;
 
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -88,6 +90,28 @@ public final class Messages {
      */
     public static Component plain(String key) {
         return Component.translatable(key);
+    }
+
+    /**
+     * A value that suggests a command on click and shows a translated hover line.
+     */
+    public static Component suggest(String label, String command, String hoverKey, Object... hoverArgs) {
+        return Component.literal(label).withStyle(style -> style
+                .withColor(VALUE)
+                .withBold(false)
+                .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, command))
+                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.translatable(hoverKey, values(hoverArgs)))));
+    }
+
+    /**
+     * A translated button that runs a command when clicked.
+     */
+    public static Component run(String labelKey, String command) {
+        return Component.translatable(labelKey).withStyle(style -> style
+                .withColor(VALUE)
+                .withBold(false)
+                .withUnderlined(true)
+                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command)));
     }
 
     private static Component prefixed(int bodyColor, boolean bold, String key, Object... args) {
