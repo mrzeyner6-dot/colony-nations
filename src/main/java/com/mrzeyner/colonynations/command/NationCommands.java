@@ -15,6 +15,8 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.Config;
+import com.mrzeyner.colonynations.compat.minecolonies.CitizenTaxHappiness;
+import com.mrzeyner.colonynations.compat.minecolonies.MineColoniesCities;
 import com.mrzeyner.colonynations.compat.minecolonies.NationCityCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationDaily;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTaxCommands;
@@ -154,6 +156,9 @@ public final class NationCommands {
                     nation.name(),
                     Config.DISBAND_CONFIRM_SECONDS.get());
         }
+        for (CityRef city : nation.cities()) {
+            CitizenTaxHappiness.clear(MineColoniesCities.findByCity(city));
+        }
         TerritorySync.onDisband(source.getServer(), nation);
         data.registry().delete(nation.id());
         data.territory().releaseAll(nation.id());
@@ -226,6 +231,7 @@ public final class NationCommands {
         Messages.line(source, "command.colony_nations.info.color", Messages.swatch(nation.color()), formatColor(nation.color()));
         Messages.line(source, "command.colony_nations.info.capital", capitalLabel(nation));
         Messages.line(source, "command.colony_nations.info.colonies", coloniesLabel(nation));
+        CitizenTaxHappiness.appendInfo(source, nation);
         Messages.line(source, "command.colony_nations.info.treasury", nation.treasury());
         return 1;
     }

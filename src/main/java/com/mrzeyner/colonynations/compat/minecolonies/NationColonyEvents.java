@@ -52,6 +52,7 @@ public final class NationColonyEvents {
             data.registry().addColony(nation.id(), city);
             data.setDirty();
             CityTerritory.onCityJoined(server, data, colony, server.overworld().getGameTime());
+            CitizenTaxHappiness.apply(data.registry().byId(nation.id()).orElse(nation));
         } catch (NationException exception) {
             ColonyNations.LOGGER.warn(
                     "Could not add colony {} in {} to nation {}",
@@ -87,6 +88,7 @@ public final class NationColonyEvents {
         if (nation == null) {
             return;
         }
+        CitizenTaxHappiness.clear(colony);
         data.registry().removeColony(nation.id(), city);
         data.setDirty();
         TerritorySync.onCityLeft(server, data, colony, server.overworld().getGameTime());

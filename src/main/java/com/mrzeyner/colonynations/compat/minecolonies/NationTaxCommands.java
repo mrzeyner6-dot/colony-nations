@@ -76,8 +76,9 @@ public final class NationTaxCommands {
         if (!PopulationTax.canChange(nation.lastTaxChangeDay(), today)) {
             return Messages.error(source, "command.colony_nations.tax.cooldown");
         }
-        data.registry().setTax(nation.id(), rate, today);
+        Nation updated = data.registry().setTax(nation.id(), rate, today);
         data.setDirty();
+        CitizenTaxHappiness.apply(updated);
         return Messages.success(source, "command.colony_nations.tax.set", nation.name(), rate);
     }
 

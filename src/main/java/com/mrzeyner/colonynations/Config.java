@@ -66,6 +66,18 @@ public final class Config {
             .comment("Highest tax rate an owner can set, in spurs per adult citizen per day.")
             .defineInRange("maxTaxRate", 6, 0, 1_000_000);
 
+    public static final ModConfigSpec.IntValue TAX_NEUTRAL_RATE = BUILDER
+            .comment("Tax rate whose happiness factor is 1.0. Zero tax uses taxHappinessBonus; maxTaxRate uses taxHappinessPenalty.")
+            .defineInRange("taxNeutralRate", 2, 0, 1_000_000);
+
+    public static final ModConfigSpec.DoubleValue TAX_HAPPINESS_BONUS = BUILDER
+            .comment("Happiness factor at a tax rate of 0. 1.0 is neutral.")
+            .defineInRange("taxHappinessBonus", 1.15, 0.0, 10.0);
+
+    public static final ModConfigSpec.DoubleValue TAX_HAPPINESS_PENALTY = BUILDER
+            .comment("Happiness factor at maxTaxRate.")
+            .defineInRange("taxHappinessPenalty", 0.70, 0.0, 10.0);
+
     static {
         BUILDER.pop();
     }

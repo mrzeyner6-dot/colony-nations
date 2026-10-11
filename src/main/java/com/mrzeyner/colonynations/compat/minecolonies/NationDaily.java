@@ -14,12 +14,13 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
- * One pass per new overworld day: taxes, then upkeep. Happiness and separatism join this same pass later.
+ * One pass per new overworld day: taxes, then upkeep, then happiness. Separatism joins this same pass later.
  * The operator command runs the pass again and does not move {@code lastUpkeepDay}.
  */
 @EventBusSubscriber(modid = ColonyNations.MOD_ID)
 public final class NationDaily {
     private static final long TICKS_PER_SECOND = 20L;
+    private static boolean restoredTaxHappiness;
 
     private NationDaily() {
     }
@@ -29,6 +30,10 @@ public final class NationDaily {
         MinecraftServer server = event.getServer();
         if (server.overworld().getGameTime() % TICKS_PER_SECOND != 0L) {
             return;
+        }
+        if (!restoredTaxHappiness) {
+            restoredTaxHappiness = true;
+            CitizenTaxHappiness.refreshAll(server);
         }
         NationSavedData data = NationSavedData.get(server);
         Upkeep.Due due = Upkeep.due(data.lastUpkeepDay(), server.overworld().getDayTime());
@@ -48,5 +53,6 @@ public final class NationDaily {
     public static void run(MinecraftServer server) {
         NationTaxes.collect(server);
         NationUpkeep.run(server);
+        CitizenTaxHappiness.refreshAll(server);
     }
 }

@@ -91,7 +91,8 @@ public final class NationCityCommands {
                     colonyLabel(city),
                     city.colonyId(),
                     city.dimension(),
-                    Messages.plain(markKey));
+                    Messages.plain(markKey),
+                    CitizenTaxHappiness.format(MineColoniesCities.findByCity(city)));
         }
         return 1;
     }
@@ -135,8 +136,10 @@ public final class NationCityCommands {
         data.setDirty();
         if (add) {
             CityTerritory.onCityJoined(source.getServer(), data, colony, source.getLevel().getGameTime());
+            CitizenTaxHappiness.apply(data.registry().byOwner(player.getUUID()).orElse(nation));
             return Messages.event(source, "command.colony_nations.city.added", colony.getName(), colonyId, nation.name());
         }
+        CitizenTaxHappiness.clear(colony);
         TerritorySync.onCityLeft(source.getServer(), data, colony, source.getLevel().getGameTime());
         return Messages.success(source, "command.colony_nations.city.removed", colony.getName(), colonyId, nation.name());
     }
