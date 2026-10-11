@@ -94,5 +94,14 @@
   "map.colony_nations.tooltip.state": "%s — Державна земля",
   "map.colony_nations.tooltip.city": "Місто «%s» — %s",
   "map.colony_nations.tooltip.city_unrest": "Місто «%s» — %s — заворушення",
+  "map.colony_nations.free_city": "Вільне місто",
+  "map.colony_nations.tooltip.free_city": "Вільне місто «%s»",
+  "command.colony_nations.secession.offer": "Місто %s просить прийняти його до складу держави %s. /nation accept-city %s або /nation decline-city %s.",
+  "command.colony_nations.secession.joined": "Місто %s перейшло до держави %s.",
+  "command.colony_nations.secession.free": "Місто %s стало вільним містом.",
+  "command.colony_nations.secession.none": "Місто #%s не просить прийняти його до вашої держави.",
+  "command.colony_nations.secession.expired": "Пропозиція міста %s вже минула.",
+  "command.colony_nations.secession.forced_offer": "Місто %s просить прийняти його до держави %s.",
+  "command.colony_nations.secession.forced_free": "Місто %s тепер вільне.",
   "map.colony_nations.tooltip.core": "%s — околиці міста «%s»"
 }

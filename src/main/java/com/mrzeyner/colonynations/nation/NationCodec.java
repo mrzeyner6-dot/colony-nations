@@ -21,11 +21,12 @@ import com.mrzeyner.colonynations.territory.TerritoryMap;
  * {@code NationSavedData} stores these bytes inside NBT so the round trip can be tested without Minecraft.
  */
 public final class NationCodec {
-    public static final int VERSION = 5;
+    public static final int VERSION = 6;
     private static final int VERSION_WITH_NATIONS_ONLY = 2;
     private static final int VERSION_WITH_TERRITORY = 3;
     private static final int VERSION_WITH_TAX = 4;
     private static final int VERSION_WITH_SEPARATISM = 5;
+    private static final int VERSION_WITH_FREE_CITIES = 6;
 
     static final Logger LOGGER = Logger.getLogger(NationCodec.class.getName());
 
@@ -40,9 +41,16 @@ public final class NationCodec {
      * @param preserved original payload bytes when {@code warning} is set, so a later save can write them back
      * @param version payload version that was read
      */
-    public record Loaded(NationRegistry registry, TerritoryMap territory, String warning, byte[] preserved, int version) {
+    public record Loaded(
+            NationRegistry registry,
+            TerritoryMap territory,
+            List<FreeCity> freeCities,
+            String warning,
+            byte[] preserved,
+            int version) {
         public Loaded {
             territory = territory == null ? new TerritoryMap() : territory;
+            freeCities = freeCities == null ? List.of() : List.copyOf(freeCities);
             preserved = preserved == null ? null : preserved.clone();
         }
 
@@ -59,31 +67,42 @@ public final class NationCodec {
     }
 
     public static byte[] write(NationRegistry registry, TerritoryMap territory) {
-        return writeAt(VERSION, registry, territory);
+        return write(registry, territory, List.of());
+    }
+
+    public static byte[] write(NationRegistry registry, TerritoryMap territory, List<FreeCity> freeCities) {
+        return writeAt(VERSION, registry, territory, freeCities);
     }
 
     /**
      * Version 2 layout: nations only. Used to test migration to {@link #VERSION}.
      */
     static byte[] writeVersion2(NationRegistry registry) {
-        return writeAt(VERSION_WITH_NATIONS_ONLY, registry, new TerritoryMap());
+        return writeAt(VERSION_WITH_NATIONS_ONLY, registry, new TerritoryMap(), List.of());
     }
 
     /**
      * Version 3 layout: nations and territory, no tax fields. Used to test migration to {@link #VERSION}.
      */
     static byte[] writeVersion3(NationRegistry registry, TerritoryMap territory) {
-        return writeAt(VERSION_WITH_TERRITORY, registry, territory);
+        return writeAt(VERSION_WITH_TERRITORY, registry, territory, List.of());
     }
 
     /**
      * Version 4 layout: tax, no separatism. Used to test migration to {@link #VERSION}.
      */
     static byte[] writeVersion4(NationRegistry registry, TerritoryMap territory) {
-        return writeAt(VERSION_WITH_TAX, registry, territory);
+        return writeAt(VERSION_WITH_TAX, registry, territory, List.of());
     }
 
-    private static byte[] writeAt(int version, NationRegistry registry, TerritoryMap territory) {
+    /**
+     * Version 5 layout: separatism, no free cities. Used to test migration to {@link #VERSION}.
+     */
+    static byte[] writeVersion5(NationRegistry registry, TerritoryMap territory) {
+        return writeAt(VERSION_WITH_SEPARATISM, registry, territory, List.of());
+    }
+
+    private static byte[] writeAt(int version, NationRegistry registry, TerritoryMap territory, List<FreeCity> freeCities) {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (DataOutputStream out = new DataOutputStream(bytes)) {
             out.writeInt(version);
@@ -95,6 +114,9 @@ public final class NationCodec {
             }
             if (version >= VERSION_WITH_TERRITORY) {
                 writeTerritory(out, territory);
+            }
+            if (version >= VERSION_WITH_FREE_CITIES) {
+                writeFreeCities(out, freeCities);
             }
         } catch (IOException exception) {
             throw new IllegalStateException("failed to write nations", exception);
@@ -109,7 +131,7 @@ public final class NationCodec {
         if (loaded.preserved() != null) {
             return loaded.preserved().clone();
         }
-        return write(loaded.registry(), loaded.territory());
+        return write(loaded.registry(), loaded.territory(), loaded.freeCities());
     }
 
     public static NationRegistry read(byte[] payload) {
@@ -127,6 +149,7 @@ public final class NationCodec {
                 return new Loaded(
                         new NationRegistry(),
                         new TerritoryMap(),
+                        List.of(),
                         "Unknown nation save version " + version
                                 + " (expected " + VERSION
                                 + "). The original save was kept and nation changes are blocked.",
@@ -141,7 +164,8 @@ public final class NationCodec {
             NationRegistry registry = new NationRegistry();
             registry.restore(nations);
             TerritoryMap territory = version >= VERSION_WITH_TERRITORY ? readTerritory(in) : new TerritoryMap();
-            return new Loaded(registry, territory, null, null, version);
+            List<FreeCity> freeCities = version >= VERSION_WITH_FREE_CITIES ? readFreeCities(in, registry) : List.of();
+            return new Loaded(registry, territory, freeCities, null, null, version);
         } catch (IOException exception) {
             throw new IllegalStateException("failed to read nations", exception);
         }
@@ -243,5 +267,34 @@ public final class NationCodec {
             territory.claim(chunk, UUID.fromString(in.readUTF()));
         }
         return territory;
+    }
+
+    private static void writeFreeCities(DataOutputStream out, List<FreeCity> freeCities) throws IOException {
+        List<FreeCity> cities = new ArrayList<>(freeCities == null ? List.of() : freeCities);
+        cities.sort(Comparator.comparing((FreeCity city) -> city.city().dimension()).thenComparingInt(city -> city.city().colonyId()));
+        out.writeInt(cities.size());
+        for (FreeCity city : cities) {
+            writeCity(out, city.city());
+            out.writeUTF(city.name());
+            out.writeInt(city.color());
+        }
+    }
+
+    private static List<FreeCity> readFreeCities(DataInputStream in, NationRegistry registry) throws IOException {
+        int count = in.readInt();
+        List<FreeCity> cities = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            FreeCity city = new FreeCity(readCity(in), in.readUTF(), in.readInt());
+            if (registry.byColony(city.city()).isPresent()) {
+                throw new IllegalStateException("a free city is also in a nation");
+            }
+            for (FreeCity existing : cities) {
+                if (existing.city().equals(city.city())) {
+                    throw new IllegalStateException("saved free cities share a colony");
+                }
+            }
+            cities.add(city);
+        }
+        return cities;
     }
 }

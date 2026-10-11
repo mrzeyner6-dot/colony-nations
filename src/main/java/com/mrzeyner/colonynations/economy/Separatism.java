@@ -19,7 +19,7 @@ public final class Separatism {
     /**
      * @param notifyUnrest the city landed in unrest from a calmer stage
      * @param notifyMovement the city reached the secession movement or secession from below that
-     * @param secede the city reached 100 from below; separation itself is T21
+     * @param secede the city reached 100 from below; the caller offers it away or makes it free
      */
     public record Day(
             double value,

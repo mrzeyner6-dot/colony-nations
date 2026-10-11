@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.client.TerritoryClientCache;
+import com.mrzeyner.colonynations.nation.FreeCity;
 import com.mrzeyner.colonynations.territory.ChunkPolygons;
 import com.mrzeyner.colonynations.territory.ChunkRef;
 
@@ -110,7 +111,10 @@ public final class NationMapPlugin implements IClientPlugin {
             return;
         }
         String dimension = TerritoryClientCache.dimension();
-        String nationName = nation.name() == null ? "" : nation.name();
+        boolean free = FreeCity.MAP_ID.equals(nationId);
+        String nationName = free
+                ? I18n.get("map.colony_nations.free_city")
+                : (nation.name() == null ? "" : nation.name());
         Set<ChunkRef> state = new HashSet<>();
         Map<Integer, Set<ChunkRef>> cities = new HashMap<>();
         Map<Integer, String> cityNames = new HashMap<>();
@@ -138,16 +142,23 @@ public final class NationMapPlugin implements IClientPlugin {
         overlays.addAll(polygons(level, nationName, nation.color(), state, false, I18n.get("map.colony_nations.tooltip.state", nationName)));
         for (Map.Entry<Integer, Set<ChunkRef>> city : cities.entrySet()) {
             String placeName = cityNames.getOrDefault(city.getKey(), "");
-            String tooltip = Boolean.TRUE.equals(unrest.get(city.getKey()))
-                    ? "map.colony_nations.tooltip.city_unrest"
-                    : "map.colony_nations.tooltip.city";
+            String tooltip;
+            String title;
+            if (free) {
+                tooltip = "map.colony_nations.tooltip.free_city";
+                title = I18n.get(tooltip, placeName);
+            } else if (Boolean.TRUE.equals(unrest.get(city.getKey()))) {
+                title = I18n.get("map.colony_nations.tooltip.city_unrest", placeName, nationName);
+            } else {
+                title = I18n.get("map.colony_nations.tooltip.city", placeName, nationName);
+            }
             overlays.addAll(polygons(
                     level,
                     nationName,
                     nation.color(),
                     city.getValue(),
                     true,
-                    I18n.get(tooltip, placeName, nationName)));
+                    title));
         }
         if (!overlays.isEmpty()) {
             shown.put(nationId, overlays);

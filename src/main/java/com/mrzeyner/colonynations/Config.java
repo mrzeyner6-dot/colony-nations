@@ -94,6 +94,11 @@ public final class Config {
             .comment("Separatism lost per day when happiness is at or above unrestThreshold.")
             .defineInRange("separatismDecay", 4.0D, 0.0D, 1000.0D);
 
+    public static final ModConfigSpec.IntValue SECESSION_JOIN_RADIUS = BUILDER
+            .comment("How many chunks from a seceding city's claim another nation's land may lie and still be offered the city.",
+                    "Distance is Chebyshev, in the same dimension, to that nation's state or city chunks.")
+            .defineInRange("secessionJoinRadius", 8, 0, 64);
+
     static {
         BUILDER.pop();
     }

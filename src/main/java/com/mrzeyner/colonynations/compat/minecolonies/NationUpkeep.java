@@ -90,6 +90,8 @@ public final class NationUpkeep {
     }
 
     private static void runDay(MinecraftServer server) {
+        long today = server.overworld().getDayTime() / Upkeep.TICKS_PER_DAY;
+        NationSecession.expire(server, today);
         NationTaxes.collect(server);
         run(server);
         NationTaxHappiness.refresh(server);

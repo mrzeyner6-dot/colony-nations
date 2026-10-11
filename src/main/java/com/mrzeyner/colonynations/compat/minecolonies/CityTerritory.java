@@ -28,7 +28,21 @@ public final class CityTerritory {
         if (nation == null) {
             return;
         }
+        Set<ChunkRef> previousFree = data.freeCity(city).isPresent() ? ColonyClaimCache.get().peek(city) : Set.of();
+        boolean wasFree = data.removeFreeCity(city);
         Set<ChunkRef> claim = ColonyClaimCache.get().refresh(colony, gameTime);
+        if (wasFree) {
+            List<ChunkRef> stale = new ArrayList<>();
+            for (ChunkRef chunk : previousFree) {
+                if (!claim.contains(chunk)) {
+                    stale.add(chunk);
+                }
+            }
+            TerritorySync.releaseAll(server, stale);
+            if (data.freeCities().isEmpty()) {
+                TerritorySync.forgetFreeMap(server);
+            }
+        }
         boolean changed = releaseClaim(data, claim);
         List<ChunkRef> ring = annexRing(data, colony, nation, claim);
         changed |= !ring.isEmpty();

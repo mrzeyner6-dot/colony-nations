@@ -83,6 +83,14 @@ public final class NationColonyEvents {
             return;
         }
         CityRef city = MineColoniesCities.cityRef(colony);
+        NationSecession.forget(data, city);
+        if (data.removeFreeCity(city)) {
+            TerritorySync.releaseAll(server, ColonyClaimCache.get().peek(city));
+            if (data.freeCities().isEmpty()) {
+                TerritorySync.forgetFreeMap(server);
+            }
+            ColonyClaimCache.get().invalidate(city);
+        }
         Nation nation = data.registry().byColony(city).orElse(null);
         if (nation == null) {
             return;

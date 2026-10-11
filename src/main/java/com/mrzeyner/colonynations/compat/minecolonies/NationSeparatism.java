@@ -10,7 +10,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import com.minecolonies.api.colony.IColony;
 
-import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.command.Messages;
 import com.mrzeyner.colonynations.data.NationSavedData;
@@ -38,7 +37,8 @@ public final class NationSeparatism {
                 .then(Commands.literal("separatism")
                         .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
                                 .then(Commands.argument("value", IntegerArgumentType.integer(0, 100))
-                                        .executes(NationSeparatism::set))));
+                                        .executes(NationSeparatism::set))))
+                .then(NationSecession.secedeBranch());
     }
 
     public static void advance(MinecraftServer server) {
@@ -147,8 +147,7 @@ public final class NationSeparatism {
             }
         }
         if (day.secede()) {
-            // TODO(T21): separate the city, or offer it to a neighboring nation.
-            ColonyNations.LOGGER.info("City {} of {} reached separatism 100", cityName, nation.name());
+            NationSecession.begin(server, data, nation, city, colony);
         }
     }
 

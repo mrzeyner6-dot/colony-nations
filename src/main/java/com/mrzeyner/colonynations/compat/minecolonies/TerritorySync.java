@@ -16,6 +16,7 @@ import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.CityRef;
+import com.mrzeyner.colonynations.nation.FreeCity;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.network.TerritoryDeltaPayload;
 import com.mrzeyner.colonynations.network.TerritorySnapshotPayload;
@@ -111,7 +112,33 @@ public final class TerritorySync {
             plots.add(new TerritorySnapshotPayload.PlotPart(
                     chunk.x(), chunk.z(), nationIndex, info.kind, info.colonyId, info.placeName, info.unrest));
         }
+        if (!data.unreadable()) {
+            appendFreeCities(data, dimension, gameTime, described.keySet(), parts, plots);
+        }
         PacketDistributor.sendToPlayer(player, new TerritorySnapshotPayload(dimension, parts, plots));
+    }
+
+    public static void broadcastFreeCity(MinecraftServer server, Iterable<ChunkRef> chunks, int colonyId, String placeName) {
+        String name = placeName == null ? "" : placeName;
+        Map<String, List<TerritoryDeltaPayload.Change>> byDimension = new HashMap<>();
+        for (ChunkRef chunk : chunks) {
+            byDimension.computeIfAbsent(chunk.dimension(), key -> new ArrayList<>())
+                    .add(TerritoryDeltaPayload.Change.plot(
+                            TerritoryDeltaPayload.CITY,
+                            chunk.x(),
+                            chunk.z(),
+                            FreeCity.MAP_ID,
+                            "",
+                            FreeCity.GRAY,
+                            colonyId,
+                            name,
+                            false));
+        }
+        send(server, byDimension);
+    }
+
+    public static void forgetFreeMap(MinecraftServer server) {
+        sendToAll(server, new TerritoryDeltaPayload("", List.of(TerritoryDeltaPayload.Change.forget(FreeCity.MAP_ID))));
     }
 
     public static void stateClaim(MinecraftServer server, ChunkRef chunk, Nation nation) {
@@ -277,6 +304,41 @@ public final class TerritorySync {
             return new PlotInfo(nation, TerritorySnapshotPayload.CORE, colonyId, label.name(), false);
         }
         return new PlotInfo(nation, TerritorySnapshotPayload.STATE, -1, "", false);
+    }
+
+    private static void appendFreeCities(
+            NationSavedData data,
+            String dimension,
+            long gameTime,
+            Set<ChunkRef> taken,
+            List<TerritorySnapshotPayload.NationPart> parts,
+            List<TerritorySnapshotPayload.PlotPart> plots) {
+        List<TerritorySnapshotPayload.PlotPart> freePlots = new ArrayList<>();
+        int index = parts.size();
+        for (FreeCity free : data.freeCities()) {
+            if (!dimension.equals(free.city().dimension())) {
+                continue;
+            }
+            IColony colony = MineColoniesCities.findByCity(free.city());
+            String name = colony == null || colony.getName() == null || colony.getName().isBlank()
+                    ? free.name()
+                    : colony.getName();
+            Set<ChunkRef> chunks = colony == null
+                    ? ColonyClaimCache.get().peek(free.city())
+                    : ColonyClaimCache.get().chunks(colony, gameTime);
+            for (ChunkRef chunk : chunks) {
+                if (!dimension.equals(chunk.dimension()) || taken.contains(chunk)) {
+                    continue;
+                }
+                freePlots.add(new TerritorySnapshotPayload.PlotPart(
+                        chunk.x(), chunk.z(), index, TerritorySnapshotPayload.CITY, free.city().colonyId(), name, false));
+            }
+        }
+        if (freePlots.isEmpty()) {
+            return;
+        }
+        parts.add(new TerritorySnapshotPayload.NationPart(FreeCity.MAP_ID, "", FreeCity.GRAY));
+        plots.addAll(freePlots);
     }
 
     private static void sendToAll(MinecraftServer server, TerritoryDeltaPayload payload) {

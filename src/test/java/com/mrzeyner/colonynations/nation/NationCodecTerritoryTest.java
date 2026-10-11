@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.mrzeyner.colonynations.territory.ChunkRef;
@@ -105,5 +106,37 @@ class NationCodecTerritoryTest {
         assertEquals(gaul.id(), loaded.territory().owner(nether).orElseThrow());
         assertEquals(registry.byId(rome.id()).orElseThrow(), loaded.registry().byId(rome.id()).orElseThrow());
         assertArrayEquals(bytes, NationCodec.write(loaded));
+    }
+
+    @Test
+    void version5KeepsSeparatismAndStartsFreeCitiesEmpty() {
+        NationRegistry registry = new NationRegistry();
+        Nation rome = registry.create("Rome", UUID.randomUUID(), 1, 1L);
+        CityRef city = new CityRef("minecraft:overworld", 4);
+        registry.addColony(rome.id(), city);
+        registry.setSeparatism(rome.id(), city, 80.0D);
+
+        NationCodec.Loaded loaded = NationCodec.load(NationCodec.writeVersion5(registry, new TerritoryMap()));
+
+        assertEquals(5, loaded.version());
+        assertEquals(80.0D, loaded.registry().byId(rome.id()).orElseThrow().separatism(city), 0.0D);
+        assertTrue(loaded.freeCities().isEmpty());
+
+        NationCodec.Loaded again = NationCodec.load(NationCodec.write(loaded));
+        assertEquals(NationCodec.VERSION, again.version());
+        assertEquals(loaded.registry().byId(rome.id()).orElseThrow(), again.registry().byId(rome.id()).orElseThrow());
+        assertTrue(again.freeCities().isEmpty());
+    }
+
+    @Test
+    void freeCitiesRoundTrip() {
+        NationRegistry registry = new NationRegistry();
+        Nation rome = registry.create("Rome", UUID.randomUUID(), 1, 1L);
+        FreeCity free = new FreeCity(new CityRef("minecraft:overworld", 9), "Ostia", FreeCity.GRAY);
+
+        NationCodec.Loaded loaded = NationCodec.load(NationCodec.write(registry, new TerritoryMap(), List.of(free)));
+
+        assertEquals(List.of(free), loaded.freeCities());
+        assertEquals(List.of(free), NationCodec.load(NationCodec.write(loaded)).freeCities());
     }
 }

@@ -94,5 +94,14 @@
   "map.colony_nations.tooltip.state": "%s — State land",
   "map.colony_nations.tooltip.city": "City \"%s\" — %s",
   "map.colony_nations.tooltip.city_unrest": "City \"%s\" — %s — unrest",
+  "map.colony_nations.free_city": "Free city",
+  "map.colony_nations.tooltip.free_city": "Free city \"%s\"",
+  "command.colony_nations.secession.offer": "City %s asks to join %s. /nation accept-city %s or /nation decline-city %s.",
+  "command.colony_nations.secession.joined": "City %s joined %s.",
+  "command.colony_nations.secession.free": "City %s became a free city.",
+  "command.colony_nations.secession.none": "City #%s is not asking to join your nation.",
+  "command.colony_nations.secession.expired": "The offer from %s has expired.",
+  "command.colony_nations.secession.forced_offer": "City %s asked to join %s.",
+  "command.colony_nations.secession.forced_free": "City %s is now a free city.",
   "map.colony_nations.tooltip.core": "%s — outskirts of city \"%s\""
 }

@@ -10,6 +10,7 @@ import com.minecolonies.api.colony.IColonyManager;
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.CityRef;
+import com.mrzeyner.colonynations.nation.FreeCity;
 import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.territory.ChunkRef;
 
@@ -42,7 +43,8 @@ public final class ColonyClaimTicker {
         for (IColony colony : IColonyManager.getInstance().getAllColonies()) {
             CityRef city = MineColoniesCities.cityRef(colony);
             Nation nation = data.registry().byColony(city).orElse(null);
-            if (nation == null) {
+            FreeCity free = data.freeCity(city).orElse(null);
+            if (nation == null && free == null) {
                 continue;
             }
             String previousName = ColonyClaimCache.get().name(city);
@@ -70,9 +72,16 @@ public final class ColonyClaimTicker {
             if (nameChanged) {
                 showCity = new ArrayList<>(after);
             }
-            TerritorySync.broadcastCity(server, nation, showCity, colony.getID(), name);
+            if (nation != null) {
+                TerritorySync.broadcastCity(server, nation, showCity, colony.getID(), name);
+            } else {
+                TerritorySync.broadcastFreeCity(server, showCity, colony.getID(), name);
+                if (!name.equals(free.name())) {
+                    data.putFreeCity(new FreeCity(city, name, FreeCity.GRAY));
+                }
+            }
             TerritorySync.reconcile(server, data, left, gameTime);
-            if (nameChanged || !showCity.isEmpty() || !left.isEmpty()) {
+            if (nation != null && (nameChanged || !showCity.isEmpty() || !left.isEmpty())) {
                 TerritorySync.relabelState(server, data, nation, city.dimension(), gameTime);
             }
         }

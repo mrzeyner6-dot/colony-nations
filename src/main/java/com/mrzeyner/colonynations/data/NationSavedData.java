@@ -2,11 +2,14 @@ package com.mrzeyner.colonynations.data;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
 
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.command.Messages;
+import com.mrzeyner.colonynations.nation.CityRef;
+import com.mrzeyner.colonynations.nation.FreeCity;
 import com.mrzeyner.colonynations.nation.NationCodec;
 import com.mrzeyner.colonynations.nation.NationRegistry;
 import com.mrzeyner.colonynations.territory.TerritoryMap;
@@ -29,9 +32,12 @@ public final class NationSavedData extends SavedData {
     private static final String PAYLOAD = "Payload";
     private static final String NOTICES = "Notices";
     private static final String LAST_UPKEEP_DAY = "LastUpkeepDay";
+    private static final String OFFERS = "SecessionOffers";
 
     private final NationRegistry registry;
     private final TerritoryMap territory;
+    private final List<FreeCity> freeCities = new ArrayList<>();
+    private final List<SecessionOffer> offers = new ArrayList<>();
     private final List<PendingNotice> notices = new ArrayList<>();
     private final byte[] preservedPayload;
     private final int unreadVersion;
@@ -73,6 +79,74 @@ public final class NationSavedData extends SavedData {
         notices.clear();
         notices.addAll(next);
         setDirty();
+    }
+
+    /**
+     * Drops offer lines for one colony so an expired request is not shown on the next login.
+     */
+    public void removeNotices(UUID owner, String key, String colonyId) {
+        boolean removed = notices.removeIf(notice -> notice.owner().equals(owner)
+                && notice.key().equals(key)
+                && notice.args().size() >= 3
+                && colonyId.equals(notice.args().get(2)));
+        if (removed) {
+            setDirty();
+        }
+    }
+
+    public List<FreeCity> freeCities() {
+        return List.copyOf(freeCities);
+    }
+
+    public Optional<FreeCity> freeCity(CityRef city) {
+        for (FreeCity free : freeCities) {
+            if (free.city().equals(city)) {
+                return Optional.of(free);
+            }
+        }
+        return Optional.empty();
+    }
+
+    public boolean putFreeCity(FreeCity city) {
+        freeCities.removeIf(existing -> existing.city().equals(city.city()));
+        freeCities.add(city);
+        setDirty();
+        return true;
+    }
+
+    public boolean removeFreeCity(CityRef city) {
+        boolean removed = freeCities.removeIf(existing -> existing.city().equals(city));
+        if (removed) {
+            setDirty();
+        }
+        return removed;
+    }
+
+    public List<SecessionOffer> offers() {
+        return List.copyOf(offers);
+    }
+
+    public Optional<SecessionOffer> offer(CityRef city) {
+        for (SecessionOffer offer : offers) {
+            if (offer.city().equals(city)) {
+                return Optional.of(offer);
+            }
+        }
+        return Optional.empty();
+    }
+
+    public void putOffer(SecessionOffer offer) {
+        offers.removeIf(existing -> existing.city().equals(offer.city()));
+        offers.add(offer);
+        setDirty();
+    }
+
+    public boolean removeOffer(CityRef city) {
+        boolean removed = offers.removeIf(existing -> existing.city().equals(city));
+        if (removed) {
+            setDirty();
+        }
+        return removed;
     }
 
     public List<PendingNotice> takeNotices(UUID owner) {
@@ -134,8 +208,10 @@ public final class NationSavedData extends SavedData {
             data = new NationSavedData(loaded.registry(), loaded.territory(), loaded.preserved(), loaded.version());
         } else {
             data = new NationSavedData(loaded.registry(), loaded.territory(), null, loaded.version());
+            data.freeCities.addAll(loaded.freeCities());
         }
         data.notices.addAll(readNotices(tag));
+        data.offers.addAll(readOffers(tag));
         if (tag.contains(LAST_UPKEEP_DAY)) {
             data.lastUpkeepDay = tag.getLong(LAST_UPKEEP_DAY);
         }
@@ -144,9 +220,12 @@ public final class NationSavedData extends SavedData {
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
-        byte[] payload = preservedPayload != null ? preservedPayload : NationCodec.write(registry, territory);
+        byte[] payload = preservedPayload != null
+                ? preservedPayload
+                : NationCodec.write(registry, territory, freeCities);
         tag.putByteArray(PAYLOAD, payload.clone());
         tag.put(NOTICES, writeNotices());
+        tag.put(OFFERS, writeOffers());
         if (lastUpkeepDay != null) {
             tag.putLong(LAST_UPKEEP_DAY, lastUpkeepDay);
         }
@@ -189,5 +268,43 @@ public final class NationSavedData extends SavedData {
                     args));
         }
         return notices;
+    }
+
+    private ListTag writeOffers() {
+        ListTag list = new ListTag();
+        for (SecessionOffer offer : offers) {
+            CompoundTag tag = new CompoundTag();
+            tag.putString("Target", offer.targetNation().toString());
+            tag.putString("TargetOwner", offer.targetOwner().toString());
+            tag.putString("From", offer.fromNation().toString());
+            tag.putString("Dimension", offer.city().dimension());
+            tag.putInt("ColonyId", offer.city().colonyId());
+            tag.putString("CityName", offer.cityName());
+            tag.putString("FromName", offer.fromNationName());
+            tag.putString("TargetName", offer.targetNationName());
+            tag.putLong("Expires", offer.expiresOnDay());
+            list.add(tag);
+        }
+        return list;
+    }
+
+    private static List<SecessionOffer> readOffers(CompoundTag tag) {
+        List<SecessionOffer> offers = new ArrayList<>();
+        ListTag list = tag.getList(OFFERS, Tag.TAG_COMPOUND);
+        for (Tag entry : list) {
+            if (!(entry instanceof CompoundTag offer)) {
+                continue;
+            }
+            offers.add(new SecessionOffer(
+                    UUID.fromString(offer.getString("Target")),
+                    UUID.fromString(offer.getString("TargetOwner")),
+                    new CityRef(offer.getString("Dimension"), offer.getInt("ColonyId")),
+                    UUID.fromString(offer.getString("From")),
+                    offer.getString("CityName"),
+                    offer.getString("FromName"),
+                    offer.getString("TargetName"),
+                    offer.getLong("Expires")));
+        }
+        return offers;
     }
 }

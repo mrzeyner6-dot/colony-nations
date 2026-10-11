@@ -17,6 +17,7 @@ import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.compat.minecolonies.NationCityCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTaxCommands;
+import com.mrzeyner.colonynations.compat.minecolonies.NationSecession;
 import com.mrzeyner.colonynations.compat.minecolonies.NationSeparatism;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTaxHappiness;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTerritoryCommands;
@@ -80,6 +81,8 @@ public final class NationCommands {
                                 .executes(NationCityCommands::capital)))
                 .then(NationTreasuryCommands.branch())
                 .then(NationTaxCommands.branch())
+                .then(NationSecession.acceptBranch())
+                .then(NationSecession.declineBranch())
                 .then(Commands.literal("annex").executes(NationTerritoryCommands::annex))
                 .then(Commands.literal("unannex").executes(NationTerritoryCommands::unannex))
                 .then(Commands.literal("territory").executes(NationTerritoryCommands::territory))
@@ -151,6 +154,7 @@ public final class NationCommands {
                     nation.name(),
                     Config.DISBAND_CONFIRM_SECONDS.get());
         }
+        NationSecession.onNationGone(source.getServer(), data, nation);
         TerritorySync.onDisband(source.getServer(), nation);
         data.registry().delete(nation.id());
         data.territory().releaseAll(nation.id());

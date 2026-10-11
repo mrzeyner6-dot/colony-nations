@@ -141,6 +141,7 @@ public final class NationCityCommands {
             CityTerritory.onCityJoined(source.getServer(), data, colony, source.getLevel().getGameTime());
             return Messages.event(source, "command.colony_nations.city.added", colony.getName(), colonyId, nation.name());
         }
+        NationSecession.forget(data, city);
         TerritorySync.onCityLeft(source.getServer(), data, colony, source.getLevel().getGameTime());
         return Messages.success(source, "command.colony_nations.city.removed", colony.getName(), colonyId, nation.name());
     }
