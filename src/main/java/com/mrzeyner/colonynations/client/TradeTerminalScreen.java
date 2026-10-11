@@ -4,6 +4,8 @@ import java.util.List;
 
 import com.mrzeyner.colonynations.network.TerminalCreditsPayload;
 import com.mrzeyner.colonynations.network.TerminalSettingsPayload;
+import com.mrzeyner.colonynations.network.TerminalVisitPayload;
+import com.mrzeyner.colonynations.trade.TerminalStation;
 import com.mrzeyner.colonynations.trade.TradeBlocks;
 import com.mrzeyner.colonynations.trade.TradeTerminalMenu;
 
@@ -34,7 +36,7 @@ public final class TradeTerminalScreen extends AbstractContainerScreen<TradeTerm
     public TradeTerminalScreen(TradeTerminalMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
         this.imageWidth = menu.owner() ? 360 : 176;
-        this.imageHeight = menu.owner() ? 270 : 120;
+        this.imageHeight = menu.owner() ? 294 : 136;
         this.titleLabelY = 6;
         this.inventoryLabelY = menu.owner() ? TradeTerminalMenu.PLAYER_Y - 12 : 10_000;
     }
@@ -95,11 +97,12 @@ public final class TradeTerminalScreen extends AbstractContainerScreen<TradeTerm
             line(graphics, "gui.colony_nations.terminal.sample", 184, 18);
             line(graphics, "gui.colony_nations.terminal.price_field", 184, 52);
             line(graphics, "gui.colony_nations.terminal.pack_field", 184, 86);
-            graphics.drawString(font, Component.translatable("gui.colony_nations.terminal.sold_today", menu.packsToday(), menu.spursToday()), 184, 148, TEXT, false);
-            graphics.drawString(font, Component.translatable("gui.colony_nations.terminal.sold_yesterday", menu.packsYesterday(), menu.spursYesterday()), 184, 160, TEXT, false);
-            line(graphics, "gui.colony_nations.terminal.credits", 184, 178);
+            visitLines(graphics, 184, 146);
+            graphics.drawString(font, Component.translatable("gui.colony_nations.terminal.sold_today", menu.packsToday(), menu.spursToday()), 184, 176, TEXT, false);
+            graphics.drawString(font, Component.translatable("gui.colony_nations.terminal.sold_yesterday", menu.packsYesterday(), menu.spursYesterday()), 184, 188, TEXT, false);
+            line(graphics, "gui.colony_nations.terminal.credits", 184, 206);
             List<TerminalCreditsPayload.Line> credits = TerminalCreditsClient.lines(menu.blockPos());
-            int y = 190;
+            int y = 218;
             if (credits.isEmpty()) {
                 line(graphics, "gui.colony_nations.terminal.credits_empty", 184, y);
                 return;
@@ -108,10 +111,7 @@ public final class TradeTerminalScreen extends AbstractContainerScreen<TradeTerm
                 if (y > imageHeight - 12) {
                     break;
                 }
-                Component name = credit.name().isEmpty()
-                        ? Component.translatable("gui.colony_nations.terminal.counter")
-                        : Component.literal(credit.name());
-                graphics.drawString(font, Component.translatable("gui.colony_nations.terminal.credit_line", name, credit.credit()), 184, y, VALUE, false);
+                graphics.drawString(font, Component.translatable("gui.colony_nations.terminal.credit_line", buyerName(credit), credit.credit()), 184, y, VALUE, false);
                 y += 12;
             }
             return;
@@ -122,6 +122,43 @@ public final class TradeTerminalScreen extends AbstractContainerScreen<TradeTerm
         graphics.drawString(font, price, 32, 26, TEXT, false);
         line(graphics, "gui.colony_nations.terminal.terms", 8, 48);
         graphics.drawString(font, Component.translatable("gui.colony_nations.terminal.credit", menu.viewerCredit()), 8, 64, TEXT, false);
+        visitLines(graphics, 8, 80);
+    }
+
+    private void visitLines(GuiGraphics graphics, int x, int y) {
+        TerminalVisitPayload visit = TerminalVisitClient.visit(menu.blockPos());
+        Component station = visit.station()
+                ? Component.translatable("gui.colony_nations.terminal.station", Component.literal(visit.stationName()))
+                : Component.translatable("gui.colony_nations.terminal.no_station");
+        graphics.drawString(font, station, x, y, TEXT, false);
+        Component train = trainLine(visit);
+        graphics.drawString(font, train, x, y + 12, TEXT, false);
+    }
+
+    private Component trainLine(TerminalVisitPayload visit) {
+        if (!visit.train()) {
+            return Component.translatable("gui.colony_nations.terminal.no_train");
+        }
+        Component trainName = Component.literal(visit.trainName());
+        TerminalStation.Kind kind = visit.visitKind();
+        if (kind == TerminalStation.Kind.PRIVATE && visit.nationName().isEmpty()) {
+            return visit.unowned()
+                    ? Component.translatable("gui.colony_nations.terminal.train_unowned", trainName)
+                    : Component.translatable("gui.colony_nations.terminal.train_private", trainName);
+        }
+        Component nation = Component.literal(visit.nationName().isEmpty() ? "—" : visit.nationName());
+        return Component.translatable("gui.colony_nations.terminal.train", trainName, nation);
+    }
+
+    private static Component buyerName(TerminalCreditsPayload.Line credit) {
+        return switch (credit.role()) {
+            case TerminalCreditsPayload.ROLE_COUNTER -> Component.translatable("gui.colony_nations.terminal.counter");
+            case TerminalCreditsPayload.ROLE_UNOWNED -> Component.translatable("gui.colony_nations.terminal.unowned_buyer");
+            case TerminalCreditsPayload.ROLE_PRIVATE -> credit.name().isEmpty()
+                    ? Component.translatable("gui.colony_nations.terminal.private_buyer")
+                    : Component.translatable("gui.colony_nations.terminal.private_named", Component.literal(credit.name()));
+            default -> Component.literal(credit.name());
+        };
     }
 
     private void apply() {

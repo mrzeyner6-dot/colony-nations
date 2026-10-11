@@ -124,6 +124,16 @@ public final class Config {
 
     static {
         BUILDER.pop();
+        BUILDER.push("trade");
+    }
+
+    public static final ModConfigSpec.IntValue TERMINAL_STATION_RADIUS = BUILDER
+            .comment("Chebyshev radius, in blocks, from a trade terminal to a Create station block.",
+                    "The terminal sells only while a train is stopped at a station inside this box. The nearest such station wins.")
+            .defineInRange("terminalStationRadius", 3, 1, 8);
+
+    static {
+        BUILDER.pop();
     }
 
     public static final ModConfigSpec SPEC = BUILDER.build();

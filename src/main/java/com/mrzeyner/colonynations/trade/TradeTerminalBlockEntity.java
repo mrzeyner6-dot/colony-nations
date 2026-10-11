@@ -8,13 +8,20 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.mojang.authlib.GameProfile;
+
 import com.mrzeyner.colonynations.ColonyNations;
+import com.mrzeyner.colonynations.Config;
+import com.mrzeyner.colonynations.compat.create.CreateStations;
 import com.mrzeyner.colonynations.compat.minecolonies.ChunkNation;
 import com.mrzeyner.colonynations.compat.numismatics.NumismaticsCoins;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.economy.PopulationTax;
 import com.mrzeyner.colonynations.nation.Nation;
+import com.mrzeyner.colonynations.nation.NationRegistry;
+import com.mrzeyner.colonynations.network.MenuLimits;
 import com.mrzeyner.colonynations.network.TerminalCreditsPayload;
+import com.mrzeyner.colonynations.network.TerminalVisitPayload;
 import com.mrzeyner.colonynations.territory.Upkeep;
 
 import net.minecraft.core.BlockPos;
@@ -39,7 +46,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
  * Stock, coin receiver, output, and the nation this terminal belongs to.
- * The sample slot is the good for sale. Until T26 every payment is credited to {@link TerminalTrade#COUNTER}.
+ * The sample slot is the good for sale. Coins move only while a foreign train is stopped at a nearby station.
  */
 public final class TradeTerminalBlockEntity extends BlockEntity implements MenuProvider {
     public static final int STOCK_SLOTS = 27;
@@ -71,6 +78,8 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
     private int packSize = 1;
     private TerminalLedger ledger = TerminalLedger.unset();
     private String creditSnapshot = "";
+    private TerminalStation.Binding visit = TerminalStation.Binding.none();
+    private String visitSnapshot = "";
     private boolean reading;
 
     public TradeTerminalBlockEntity(BlockPos pos, BlockState state) {
@@ -133,11 +142,11 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
     }
 
     /**
-     * Who is paying right now. T26 will return the nation that owns the train at the station.
+     * Who is paying right now: the train owner's nation, that player when they have no nation,
+     * or {@link TerminalTrade#UNOWNED} when the train has no owner. Null when the terminal is not selling.
      */
     public UUID buyer() {
-        // TODO(T26) nation of the train at this station, or a private buyer when the train has no nation.
-        return TerminalTrade.COUNTER;
+        return visit.trades() ? visit.buyer() : null;
     }
 
     public boolean acceptsGoods(ItemStack stack) {
@@ -185,6 +194,16 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
         creditSnapshot = snapshot();
     }
 
+    public void refreshVisit(ServerPlayer player) {
+        NationSavedData data = NationSavedData.get(player.server);
+        if (!data.unreadable()) {
+            visit = CreateStations.bind(
+                    player.serverLevel(), worldPosition, Config.TERMINAL_STATION_RADIUS.get(), nationId, data.registry());
+        }
+        visitSnapshot = visit.token();
+        PacketDistributor.sendToPlayer(player, visitPayload(data.unreadable() ? null : data.registry()));
+    }
+
     public void dropContents(Level level, BlockPos pos) {
         drop(level, pos, stock);
         drop(level, pos, coins);
@@ -193,27 +212,32 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
     }
 
     private void exchange(ServerLevel server) {
-        if (NationSavedData.get(server.getServer()).unreadable()) {
+        NationSavedData data = NationSavedData.get(server.getServer());
+        if (data.unreadable()) {
             return;
         }
         long today = server.getServer().overworld().getDayTime() / Upkeep.TICKS_PER_DAY;
         TerminalLedger rolled = ledger.onDay(today);
-        boolean changed = !rolled.equals(ledger);
+        boolean dayChanged = !rolled.equals(ledger);
         ledger = rolled;
-        long coinSpurs = coinSpurs();
+        TerminalStation.Binding next = CreateStations.bind(
+                server, worldPosition, Config.TERMINAL_STATION_RADIUS.get(), nationId, data.registry());
+        boolean visitChanged = !next.token().equals(visit.token());
+        visit = next;
+        boolean selling = visit.trades() && !goods.isEmpty() && price > 0L && packSize > 0;
+        if (!selling) {
+            hold(server, data.registry(), dayChanged, visitChanged);
+            return;
+        }
+        UUID buyer = visit.buyer();
         TerminalTrade.Exchange deal = TerminalTrade.exchange(
-                coinSpurs, creditOf(buyer()), price, packSize, countGoods(stock), outputRoom());
+                coinSpurs(), creditOf(buyer), price, packSize, countGoods(stock), outputRoom());
         if (!deal.selling()) {
-            if (changed) {
-                setChanged();
-                syncCredits(server, false);
-            }
+            hold(server, data.registry(), dayChanged, visitChanged);
             return;
         }
         if (deal.treasurySpurs() > 0L && !payTreasury(server, deal.treasurySpurs())) {
-            if (changed) {
-                setChanged();
-            }
+            hold(server, data.registry(), dayChanged, visitChanged);
             return;
         }
         if (deal.treasurySpurs() > 0L) {
@@ -222,10 +246,20 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
         if (deal.packs() > 0) {
             moveGoods(deal.packs() * packSize);
         }
-        storeCredit(buyer(), deal.credit());
+        storeCredit(buyer, deal.credit());
         ledger = ledger.record(deal.packs(), deal.treasurySpurs());
         setChanged();
         syncCredits(server, true);
+        syncVisit(server, data.registry(), visitChanged);
+    }
+
+    private void hold(ServerLevel server, NationRegistry registry, boolean dayChanged, boolean visitChanged) {
+        if (dayChanged) {
+            setChanged();
+        }
+        if (dayChanged || visitChanged) {
+            syncVisit(server, registry, false);
+        }
     }
 
     private boolean payTreasury(ServerLevel server, long spurs) {
@@ -357,15 +391,69 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
             if (entry.getValue() <= 0L || lines.size() >= TerminalCreditsPayload.MAX_LINES) {
                 continue;
             }
-            String name = "";
-            if (!TerminalTrade.COUNTER.equals(entry.getKey())) {
-                name = data == null
-                        ? entry.getKey().toString()
-                        : data.registry().byId(entry.getKey()).map(Nation::name).orElse(entry.getKey().toString());
-            }
-            lines.add(new TerminalCreditsPayload.Line(entry.getKey(), name, entry.getValue()));
+            lines.add(creditLine(data, entry.getKey(), entry.getValue()));
         }
         return new TerminalCreditsPayload(worldPosition, lines);
+    }
+
+    private TerminalCreditsPayload.Line creditLine(NationSavedData data, UUID buyer, long credit) {
+        if (TerminalTrade.COUNTER.equals(buyer)) {
+            return new TerminalCreditsPayload.Line(buyer, TerminalCreditsPayload.ROLE_COUNTER, "", credit);
+        }
+        if (TerminalTrade.UNOWNED.equals(buyer)) {
+            return new TerminalCreditsPayload.Line(buyer, TerminalCreditsPayload.ROLE_UNOWNED, "", credit);
+        }
+        if (data != null) {
+            Nation nation = data.registry().byId(buyer).orElse(null);
+            if (nation != null) {
+                return new TerminalCreditsPayload.Line(buyer, TerminalCreditsPayload.ROLE_NATION, nation.name(), credit);
+            }
+        }
+        return new TerminalCreditsPayload.Line(buyer, TerminalCreditsPayload.ROLE_PRIVATE, playerName(buyer), credit);
+    }
+
+    private String playerName(UUID id) {
+        if (!(level instanceof ServerLevel server) || id == null) {
+            return "";
+        }
+        ServerPlayer online = server.getServer().getPlayerList().getPlayer(id);
+        if (online != null) {
+            return MenuLimits.clip(online.getGameProfile().getName(), MenuLimits.LABEL);
+        }
+        if (server.getServer().getProfileCache() == null) {
+            return "";
+        }
+        return server.getServer().getProfileCache().get(id).map(GameProfile::getName).map(name -> MenuLimits.clip(name, MenuLimits.LABEL)).orElse("");
+    }
+
+    private void syncVisit(ServerLevel server, NationRegistry registry, boolean force) {
+        String token = visit.token();
+        if (!force && token.equals(visitSnapshot)) {
+            return;
+        }
+        visitSnapshot = token;
+        TerminalVisitPayload payload = visitPayload(registry);
+        for (ServerPlayer player : server.players()) {
+            if (player.containerMenu instanceof TradeTerminalMenu menu && worldPosition.equals(menu.blockPos())) {
+                PacketDistributor.sendToPlayer(player, payload);
+            }
+        }
+    }
+
+    private TerminalVisitPayload visitPayload(@Nullable NationRegistry registry) {
+        String nation = "";
+        if (registry != null && visit.ownerNation() != null) {
+            nation = registry.byId(visit.ownerNation()).map(Nation::name).orElse("");
+        }
+        return new TerminalVisitPayload(
+                worldPosition,
+                visit.station(),
+                visit.stationName(),
+                visit.train(),
+                visit.trainName(),
+                nation,
+                visit.kind().ordinal(),
+                TerminalTrade.UNOWNED.equals(visit.buyer()));
     }
 
     private String snapshot() {
@@ -402,7 +490,8 @@ public final class TradeTerminalBlockEntity extends BlockEntity implements MenuP
         boolean owner = player instanceof ServerPlayer serverPlayer && canManage(serverPlayer);
         UUID viewer = null;
         if (player instanceof ServerPlayer serverPlayer) {
-            viewer = NationSavedData.get(serverPlayer.server).registry().byOwner(serverPlayer.getUUID()).map(Nation::id).orElse(null);
+            NationSavedData data = NationSavedData.get(serverPlayer.server);
+            viewer = data.registry().byOwner(serverPlayer.getUUID()).map(Nation::id).orElse(serverPlayer.getUUID());
         }
         return new TradeTerminalMenu(id, inventory, this, owner, viewer);
     }

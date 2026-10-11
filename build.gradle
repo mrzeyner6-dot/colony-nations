@@ -52,6 +52,13 @@ repositories {
             includeGroup "info.journeymap"
         }
     }
+    maven {
+        name = "Create"
+        url = "https://maven.createmod.net"
+        content {
+            includeGroup "net.createmod.ponder"
+        }
+    }
 }
 
 base {
@@ -162,6 +169,13 @@ dependencies {
     }
 
     implementation("maven.modrinth:create:${create_version}") {
+        transitive = false
+    }
+    // StationBlockEntity extends a Ponder type. Create already requires this mod in game; it is not a new player-facing dependency.
+    compileOnly("net.createmod.ponder:ponder-neoforge:${ponder_version}") {
+        transitive = false
+    }
+    localRuntime("net.createmod.ponder:ponder-neoforge:${ponder_version}") {
         transitive = false
     }
     implementation("maven.modrinth:numismatics:${numismatics_version}") {

@@ -54,6 +54,7 @@ public final class TradeTerminalGuard {
         }
         boolean manager = terminal.canManage(player);
         player.openMenu(terminal, buf -> buf.writeBlockPos(event.getPos()).writeBoolean(manager));
+        terminal.refreshVisit(player);
         if (manager) {
             terminal.sendCredits(player);
         }

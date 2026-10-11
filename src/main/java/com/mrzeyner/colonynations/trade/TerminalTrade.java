@@ -14,6 +14,12 @@ public final class TerminalTrade {
     public static final UUID COUNTER = UUID.nameUUIDFromBytes(
             "colony_nations:terminal_counter".getBytes(StandardCharsets.UTF_8));
 
+    /**
+     * Credit bucket for a train whose {@code owner} UUID is missing. Create omits that field when nobody assembled the train.
+     */
+    public static final UUID UNOWNED = UUID.nameUUIDFromBytes(
+            "colony_nations:terminal_unowned".getBytes(StandardCharsets.UTF_8));
+
     public static final long MAX_PRICE = 1_000_000_000L;
 
     public record Exchange(boolean selling, long treasurySpurs, long credit, int packs) {

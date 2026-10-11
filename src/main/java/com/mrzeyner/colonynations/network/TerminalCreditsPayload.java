@@ -13,10 +13,15 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * Buyer credits for the owner window. An empty name means the unnamed counter used until a train is bound.
+ * Buyer credits for the owner window.
+ * Role selects the label: the old counter, a nation, a private player, or a train with no owner.
  */
 public record TerminalCreditsPayload(BlockPos pos, List<Line> lines) implements CustomPacketPayload {
     public static final int MAX_LINES = 16;
+    public static final int ROLE_COUNTER = 0;
+    public static final int ROLE_NATION = 1;
+    public static final int ROLE_PRIVATE = 2;
+    public static final int ROLE_UNOWNED = 3;
 
     public static final Type<TerminalCreditsPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(ColonyNations.MOD_ID, "terminal_credits"));
@@ -29,6 +34,7 @@ public record TerminalCreditsPayload(BlockPos pos, List<Line> lines) implements 
                 for (int index = 0; index < size; index++) {
                     Line line = payload.lines.get(index);
                     buf.writeUUID(line.buyer());
+                    buf.writeVarInt(line.role());
                     buf.writeUtf(line.name() == null ? "" : line.name(), MenuLimits.LABEL);
                     buf.writeVarLong(line.credit());
                 }
@@ -38,12 +44,12 @@ public record TerminalCreditsPayload(BlockPos pos, List<Line> lines) implements 
                 int size = Math.min(MAX_LINES, buf.readVarInt());
                 List<Line> lines = new ArrayList<>();
                 for (int index = 0; index < size; index++) {
-                    lines.add(new Line(buf.readUUID(), buf.readUtf(MenuLimits.LABEL), buf.readVarLong()));
+                    lines.add(new Line(buf.readUUID(), buf.readVarInt(), buf.readUtf(MenuLimits.LABEL), buf.readVarLong()));
                 }
                 return new TerminalCreditsPayload(pos, List.copyOf(lines));
             });
 
-    public record Line(UUID buyer, String name, long credit) {
+    public record Line(UUID buyer, int role, String name, long credit) {
         public Line {
             name = name == null ? "" : name;
         }

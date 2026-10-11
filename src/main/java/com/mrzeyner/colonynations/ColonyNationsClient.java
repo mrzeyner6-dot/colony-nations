@@ -3,9 +3,11 @@ package com.mrzeyner.colonynations;
 import com.mrzeyner.colonynations.client.NationKeys;
 import com.mrzeyner.colonynations.client.NationMenuClient;
 import com.mrzeyner.colonynations.client.TerminalCreditsClient;
+import com.mrzeyner.colonynations.client.TerminalVisitClient;
 import com.mrzeyner.colonynations.client.TradeTerminalScreen;
 import com.mrzeyner.colonynations.network.NationOverviewPayload;
 import com.mrzeyner.colonynations.network.TerminalCreditsPayload;
+import com.mrzeyner.colonynations.network.TerminalVisitPayload;
 
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -33,6 +35,10 @@ public class ColonyNationsClient {
                 .playToClient(
                         TerminalCreditsPayload.TYPE,
                         TerminalCreditsPayload.STREAM_CODEC,
-                        TerminalCreditsClient::handle);
+                        TerminalCreditsClient::handle)
+                .playToClient(
+                        TerminalVisitPayload.TYPE,
+                        TerminalVisitPayload.STREAM_CODEC,
+                        TerminalVisitClient::handle);
     }
 }
