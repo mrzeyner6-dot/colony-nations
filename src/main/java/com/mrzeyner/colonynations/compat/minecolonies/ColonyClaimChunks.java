@@ -9,6 +9,7 @@ import com.minecolonies.api.colony.IColonyManager;
 import com.minecolonies.api.colony.claim.IChunkClaimData;
 
 import com.mrzeyner.colonynations.nation.CityRef;
+import com.mrzeyner.colonynations.nation.Nation;
 import com.mrzeyner.colonynations.nation.NationRegistry;
 import com.mrzeyner.colonynations.territory.ChunkRef;
 
@@ -43,6 +44,32 @@ public final class ColonyClaimChunks {
             chunks.add(centerChunk(colony));
         }
         return Set.copyOf(chunks);
+    }
+
+    public static Set<ChunkRef> ofNation(Nation nation) {
+        Set<ChunkRef> chunks = new HashSet<>();
+        for (CityRef city : nation.cities()) {
+            IColony colony = MineColoniesCities.findByCity(city);
+            if (colony == null) {
+                continue;
+            }
+            Set<ChunkRef> claim = of(colony);
+            ColonyClaimCache.remember(city, claim);
+            chunks.addAll(claim);
+        }
+        return chunks;
+    }
+
+    public static int townHallLevels(Nation nation) {
+        int levels = 0;
+        for (CityRef city : nation.cities()) {
+            IColony colony = MineColoniesCities.findByCity(city);
+            if (colony == null || !colony.getServerBuildingManager().hasTownHall()) {
+                continue;
+            }
+            levels += colony.getServerBuildingManager().getTownHall().getBuildingLevel();
+        }
+        return levels;
     }
 
     /**

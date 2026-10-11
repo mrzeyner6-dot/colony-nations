@@ -16,6 +16,8 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.compat.minecolonies.NationCityCommands;
+import com.mrzeyner.colonynations.compat.minecolonies.NationTerritoryCommands;
+import com.mrzeyner.colonynations.compat.minecolonies.NationUpkeep;
 import com.mrzeyner.colonynations.compat.numismatics.NationTreasuryCommands;
 import com.mrzeyner.colonynations.data.NationSavedData;
 import com.mrzeyner.colonynations.nation.CityRef;
@@ -72,8 +74,13 @@ public final class NationCommands {
                         .then(Commands.argument("colonyId", IntegerArgumentType.integer(1))
                                 .executes(NationCityCommands::capital)))
                 .then(NationTreasuryCommands.branch())
+                .then(Commands.literal("annex").executes(NationTerritoryCommands::annex))
+                .then(Commands.literal("unannex").executes(NationTerritoryCommands::unannex))
+                .then(Commands.literal("territory").executes(NationTerritoryCommands::show))
                 .then(Commands.literal("admin")
                         .requires(source -> source.hasPermission(2))
+                        .then(Commands.literal("upkeep")
+                                .then(Commands.literal("run").executes(NationCommands::runUpkeep)))
                         .then(Commands.argument("name", StringArgumentType.string())
                                 .then(Commands.literal("disband")
                                         .executes(ctx -> disband(ctx, StringArgumentType.getString(ctx, "name"))))
@@ -89,6 +96,16 @@ public final class NationCommands {
                                                         ctx,
                                                         StringArgumentType.getString(ctx, "name"),
                                                         StringArgumentType.getString(ctx, "color"))))))));
+    }
+
+    private static int runUpkeep(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        NationSavedData data = saved(ctx);
+        if (data.refuseChanges(source)) {
+            return 0;
+        }
+        int settled = NationUpkeep.run(source.getServer());
+        return Messages.success(source, "command.colony_nations.upkeep.ran", settled);
     }
 
     private static int create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {

@@ -48,6 +48,10 @@ public final class Messages {
         play(player, SoundEvents.NOTE_BLOCK_BASS.value(), BASS_VOLUME, BASS_PITCH);
     }
 
+    public static void info(ServerPlayer player, String key, Object... args) {
+        player.sendSystemMessage(prefixed(TEXT, false, key, args));
+    }
+
     public static int info(CommandSourceStack source, String key, Object... args) {
         source.sendSuccess(() -> prefixed(TEXT, false, key, args), false);
         return 1;
