@@ -54,4 +54,15 @@ class SeparatismTest {
         assertFalse(Separatism.crossing(40, 100).movement());
         assertFalse(Separatism.crossing(40, 100).unrest());
     }
+
+    @Test
+    void mapBandChangesOnlyAtStageBoundaries() {
+        assertEquals(Separatism.BAND_CALM, Separatism.mapBand(0));
+        assertEquals(Separatism.BAND_CALM, Separatism.mapBand(49));
+        assertEquals(Separatism.BAND_UNREST, Separatism.mapBand(50));
+        assertEquals(Separatism.BAND_UNREST, Separatism.mapBand(79));
+        assertEquals(Separatism.BAND_MOVEMENT, Separatism.mapBand(80));
+        assertEquals(Separatism.BAND_MOVEMENT, Separatism.mapBand(99));
+        assertEquals(Separatism.BAND_CALM, Separatism.mapBand(100));
+    }
 }

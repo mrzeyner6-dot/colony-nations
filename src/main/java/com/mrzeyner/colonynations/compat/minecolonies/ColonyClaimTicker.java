@@ -74,7 +74,7 @@ public final class ColonyClaimTicker {
                 showCity = new ArrayList<>(after);
             }
             TerritorySync.broadcastCity(
-                    server, nation, showCity, colony.getID(), name, Separatism.unrest(nation.separatism(city)));
+                    server, nation, showCity, colony.getID(), name, Separatism.mapBand(nation.separatism(city)));
             TerritorySync.reconcile(server, data, left, gameTime);
             if (nameChanged || !showCity.isEmpty() || !left.isEmpty()) {
                 TerritorySync.relabelState(server, data, nation, city.dimension(), gameTime);

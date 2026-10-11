@@ -101,5 +101,6 @@
   "map.colony_nations.tooltip.state": "%s — State land",
   "map.colony_nations.tooltip.city": "City \"%s\" — %s",
   "map.colony_nations.tooltip.city.unrest": "City \"%s\" — %s — unrest",
+  "map.colony_nations.tooltip.city.movement": "City \"%s\" — %s — secession movement",
   "map.colony_nations.tooltip.core": "%s — outskirts of city \"%s\""
 }

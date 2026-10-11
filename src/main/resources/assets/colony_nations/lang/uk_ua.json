@@ -101,5 +101,6 @@
   "map.colony_nations.tooltip.state": "%s — Державна земля",
   "map.colony_nations.tooltip.city": "Місто «%s» — %s",
   "map.colony_nations.tooltip.city.unrest": "Місто «%s» — %s — заворушення",
+  "map.colony_nations.tooltip.city.movement": "Місто «%s» — %s — рух за відділення",
   "map.colony_nations.tooltip.core": "%s — околиці міста «%s»"
 }

@@ -38,7 +38,7 @@ public final class CityTerritory {
         }
         String name = colony.getName() == null ? "" : colony.getName();
         TerritorySync.broadcastCity(
-                server, nation, claim, colony.getID(), name, Separatism.unrest(nation.separatism(city)));
+                server, nation, claim, colony.getID(), name, Separatism.mapBand(nation.separatism(city)));
         TerritorySync.broadcastState(server, data, nation, ring, gameTime);
     }
 

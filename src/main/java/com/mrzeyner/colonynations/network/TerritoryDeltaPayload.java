@@ -45,7 +45,7 @@ public record TerritoryDeltaPayload(String dimension, List<Change> changes) impl
             int color,
             int colonyId,
             String placeName,
-            boolean unrest) {
+            int band) {
         public Change {
             if (placeName == null) {
                 placeName = "";
@@ -53,7 +53,7 @@ public record TerritoryDeltaPayload(String dimension, List<Change> changes) impl
         }
 
         public static Change release(int x, int z) {
-            return new Change(RELEASE, x, z, new UUID(0L, 0L), "", 0, -1, "", false);
+            return new Change(RELEASE, x, z, new UUID(0L, 0L), "", 0, -1, "", 0);
         }
 
         public static Change plot(
@@ -65,16 +65,16 @@ public record TerritoryDeltaPayload(String dimension, List<Change> changes) impl
                 int color,
                 int colonyId,
                 String placeName,
-                boolean unrest) {
-            return new Change(op, x, z, nation, name, color, colonyId, placeName, unrest);
+                int band) {
+            return new Change(op, x, z, nation, name, color, colonyId, placeName, band);
         }
 
         public static Change nation(UUID nation, String name, int color) {
-            return new Change(NATION, 0, 0, nation, name, color, -1, "", false);
+            return new Change(NATION, 0, 0, nation, name, color, -1, "", 0);
         }
 
         public static Change forget(UUID nation) {
-            return new Change(FORGET, 0, 0, nation, "", 0, -1, "", false);
+            return new Change(FORGET, 0, 0, nation, "", 0, -1, "", 0);
         }
     }
 
@@ -94,7 +94,7 @@ public record TerritoryDeltaPayload(String dimension, List<Change> changes) impl
                 if (change.op == STATE || change.op == CITY || change.op == CORE) {
                     buf.writeVarInt(change.colonyId);
                     buf.writeUtf(change.placeName);
-                    buf.writeBoolean(change.unrest);
+                    buf.writeByte(change.band);
                 }
             }
         }
@@ -137,7 +137,7 @@ public record TerritoryDeltaPayload(String dimension, List<Change> changes) impl
                             payload.dimension,
                             chunk,
                             new TerritoryClientCache.Plot(
-                                    change.nation, land(change.op), change.colonyId, change.placeName, change.unrest));
+                                    change.nation, land(change.op), change.colonyId, change.placeName, change.band));
                 }
             }
         });
@@ -156,11 +156,11 @@ public record TerritoryDeltaPayload(String dimension, List<Change> changes) impl
             return nation;
         }
         return new Change(
-                op, x, z, nation.nation, nation.name, nation.color, buf.readVarInt(), buf.readUtf(), buf.readBoolean());
+                op, x, z, nation.nation, nation.name, nation.color, buf.readVarInt(), buf.readUtf(), buf.readByte());
     }
 
     private static Change readNation(byte op, int x, int z, RegistryFriendlyByteBuf buf) {
-        return new Change(op, x, z, new UUID(buf.readLong(), buf.readLong()), buf.readUtf(), buf.readInt(), -1, "", false);
+        return new Change(op, x, z, new UUID(buf.readLong(), buf.readLong()), buf.readUtf(), buf.readInt(), -1, "", 0);
     }
 
     private static TerritoryClientCache.Land land(byte op) {

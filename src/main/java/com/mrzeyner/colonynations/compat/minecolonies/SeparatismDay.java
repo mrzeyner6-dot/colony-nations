@@ -139,7 +139,7 @@ public final class SeparatismDay {
             Secession.onIndependence(server, nation, city, colony);
         }
         Nation current = data.registry().byId(nation.id()).orElse(null);
-        if (current != null && current.cities().contains(city) && Separatism.unrest(before) != Separatism.unrest(after)) {
+        if (current != null && current.cities().contains(city) && Separatism.mapBand(before) != Separatism.mapBand(after)) {
             refreshMap(server, current, colony, city, before, after, gameTime);
         }
     }
@@ -152,7 +152,7 @@ public final class SeparatismDay {
             int before,
             int after,
             long gameTime) {
-        if (Separatism.unrest(before) == Separatism.unrest(after)) {
+        if (Separatism.mapBand(before) == Separatism.mapBand(after)) {
             return;
         }
         String name = colony.getName() == null ? "" : colony.getName();
@@ -162,7 +162,7 @@ public final class SeparatismDay {
                 new ArrayList<ChunkRef>(ColonyClaimCache.get().chunks(colony, gameTime)),
                 colony.getID(),
                 name,
-                Separatism.unrest(after));
+                Separatism.mapBand(after));
     }
 
     private static void tellOwner(MinecraftServer server, NationSavedData data, Nation nation, String key, String city, String nationName) {

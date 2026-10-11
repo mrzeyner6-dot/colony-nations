@@ -33,9 +33,9 @@ public final class TerritoryClientCache {
     /**
      * @param colonyId colony id when {@code land} is city or core, otherwise {@code -1}
      * @param placeName colony name for city and core land; empty for annexed land
-     * @param unrest city land whose separatism is in the unrest band
+     * @param band {@link com.mrzeyner.colonynations.economy.Separatism#mapBand(int)} for city land; calm for other land
      */
-    public record Plot(UUID nation, Land land, int colonyId, String placeName, boolean unrest) {
+    public record Plot(UUID nation, Land land, int colonyId, String placeName, int band) {
         public Plot {
             if (placeName == null) {
                 placeName = "";

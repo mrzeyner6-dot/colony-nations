@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.client.TerritoryClientCache;
+import com.mrzeyner.colonynations.economy.Separatism;
 import com.mrzeyner.colonynations.territory.ChunkPolygons;
 import com.mrzeyner.colonynations.territory.ChunkRef;
 
@@ -45,6 +46,8 @@ public final class NationMapPlugin implements IClientPlugin {
     private static final float CITY_FILL = 0.40F;
     private static final float STATE_STROKE = 2F;
     private static final float CITY_STROKE = 4F;
+    private static final int UNREST_STROKE = 0xFF9F1C;
+    private static final int MOVEMENT_STROKE = 0xE63946;
 
     private IClientAPI api;
     private boolean listening;
@@ -114,7 +117,7 @@ public final class NationMapPlugin implements IClientPlugin {
         Set<ChunkRef> state = new HashSet<>();
         Map<Integer, Set<ChunkRef>> cities = new HashMap<>();
         Map<Integer, String> cityNames = new HashMap<>();
-        Map<Integer, Boolean> cityUnrest = new HashMap<>();
+        Map<Integer, Integer> cityBands = new HashMap<>();
         for (Map.Entry<ChunkRef, TerritoryClientCache.Plot> entry : TerritoryClientCache.plots().entrySet()) {
             TerritoryClientCache.Plot plot = entry.getValue();
             if (plot == null || !nationId.equals(plot.nation()) || !dimension.equals(entry.getKey().dimension())) {
@@ -126,25 +129,39 @@ public final class NationMapPlugin implements IClientPlugin {
                 if (!placeName.isEmpty()) {
                     cityNames.put(plot.colonyId(), placeName);
                 }
-                if (plot.unrest()) {
-                    cityUnrest.put(plot.colonyId(), true);
-                }
+                cityBands.merge(plot.colonyId(), plot.band(), Math::max);
             } else {
                 state.add(entry.getKey());
             }
         }
         ResourceKey<Level> level = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(dimension));
         List<PolygonOverlay> overlays = new ArrayList<>();
-        overlays.addAll(polygons(level, nationName, nation.color(), state, false, I18n.get("map.colony_nations.tooltip.state", nationName)));
+        overlays.addAll(polygons(
+                level,
+                nationName,
+                nation.color(),
+                nation.color(),
+                state,
+                false,
+                I18n.get("map.colony_nations.tooltip.state", nationName)));
         for (Map.Entry<Integer, Set<ChunkRef>> city : cities.entrySet()) {
             String placeName = cityNames.getOrDefault(city.getKey(), "");
-            String titleKey = cityUnrest.getOrDefault(city.getKey(), false)
-                    ? "map.colony_nations.tooltip.city.unrest"
-                    : "map.colony_nations.tooltip.city";
+            int band = cityBands.getOrDefault(city.getKey(), Separatism.BAND_CALM);
+            String titleKey = switch (band) {
+                case Separatism.BAND_UNREST -> "map.colony_nations.tooltip.city.unrest";
+                case Separatism.BAND_MOVEMENT -> "map.colony_nations.tooltip.city.movement";
+                default -> "map.colony_nations.tooltip.city";
+            };
+            int stroke = switch (band) {
+                case Separatism.BAND_UNREST -> UNREST_STROKE;
+                case Separatism.BAND_MOVEMENT -> MOVEMENT_STROKE;
+                default -> nation.color();
+            };
             overlays.addAll(polygons(
                     level,
                     nationName,
                     nation.color(),
+                    stroke,
                     city.getValue(),
                     true,
                     I18n.get(titleKey, placeName, nationName)));
@@ -157,7 +174,8 @@ public final class NationMapPlugin implements IClientPlugin {
     private List<PolygonOverlay> polygons(
             ResourceKey<Level> level,
             String nationName,
-            int color,
+            int fill,
+            int stroke,
             Set<ChunkRef> chunks,
             boolean city,
             String title) {
@@ -165,8 +183,8 @@ public final class NationMapPlugin implements IClientPlugin {
         for (ChunkPolygons.Polygon polygon : ChunkPolygons.of(chunks)) {
             try {
                 ShapeProperties shape = new ShapeProperties()
-                        .setFillColor(color)
-                        .setStrokeColor(color)
+                        .setFillColor(fill)
+                        .setStrokeColor(stroke)
                         .setFillOpacity(city ? CITY_FILL : STATE_FILL)
                         .setStrokeOpacity(0.9F)
                         .setStrokeWidth(city ? CITY_STROKE : STATE_STROKE);

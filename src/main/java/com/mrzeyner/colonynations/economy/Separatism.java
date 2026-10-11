@@ -12,6 +12,13 @@ public final class Separatism {
     public static final int UNREST_AT = 50;
     public static final int MOVEMENT_AT = 80;
 
+    /** Map stroke: calm or independence. */
+    public static final int BAND_CALM = 0;
+    /** Map stroke: unrest, scores 50–79. */
+    public static final int BAND_UNREST = 1;
+    /** Map stroke: secession movement, scores 80–99. */
+    public static final int BAND_MOVEMENT = 2;
+
     public enum Stage {
         CALM,
         UNREST,
@@ -48,7 +55,18 @@ public final class Separatism {
     }
 
     public static boolean unrest(int score) {
-        return stage(score) == Stage.UNREST;
+        return mapBand(score) == BAND_UNREST;
+    }
+
+    /**
+     * Which map outline a city uses. Only a change of this value should redraw the polygon.
+     */
+    public static int mapBand(int score) {
+        return switch (stage(score)) {
+            case UNREST -> BAND_UNREST;
+            case MOVEMENT -> BAND_MOVEMENT;
+            default -> BAND_CALM;
+        };
     }
 
     /**
