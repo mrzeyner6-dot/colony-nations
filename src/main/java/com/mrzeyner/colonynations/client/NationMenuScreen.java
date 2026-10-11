@@ -44,6 +44,7 @@ public final class NationMenuScreen extends Screen {
     private int freePage;
     private int offerPage;
     private int draftTax;
+    private Button taxApply;
     private int serverTax = Integer.MIN_VALUE;
     private boolean confirmDisband;
     private NationOverviewPayload.CityLine confirmCity;
@@ -357,6 +358,7 @@ public final class NationMenuScreen extends Screen {
                     if (draftTax > 0) {
                         draftTax--;
                     }
+                    refreshTaxApply();
                 })
                 .bounds(x, y, 20, 20)
                 .build());
@@ -364,20 +366,34 @@ public final class NationMenuScreen extends Screen {
                     if (draftTax < view.maxTax()) {
                         draftTax++;
                     }
+                    refreshTaxApply();
                 })
                 .bounds(x + 64, y, 20, 20)
                 .build());
-        Button apply = Button.builder(Component.translatable("gui.colony_nations.tax.apply"), button ->
+        taxApply = Button.builder(Component.translatable("gui.colony_nations.tax.apply"), button ->
                         send(NationActionPayload.TAX, "", draftTax, "", 0))
                 .bounds(x, y + 28, 120, 20)
                 .build();
-        apply.active = view.canTax() && draftTax != view.taxRate();
-        if (!view.canTax()) {
-            apply.setTooltip(Tooltip.create(Component.translatable("gui.colony_nations.tax.ready", view.taxReadyDay())));
-        } else if (draftTax == view.taxRate()) {
-            apply.setTooltip(Tooltip.create(Component.translatable("gui.colony_nations.tax.same")));
+        refreshTaxApply();
+        addRenderableWidget(taxApply);
+    }
+
+    /**
+     * The apply button is built once per tab; the draft rate changes with the -/+ buttons,
+     * so its state and tooltip are recomputed on every change.
+     */
+    private void refreshTaxApply() {
+        if (taxApply == null) {
+            return;
         }
-        addRenderableWidget(apply);
+        taxApply.active = view.canTax() && draftTax != view.taxRate();
+        if (!view.canTax()) {
+            taxApply.setTooltip(Tooltip.create(Component.translatable("gui.colony_nations.tax.ready", view.taxReadyDay())));
+        } else if (draftTax == view.taxRate()) {
+            taxApply.setTooltip(Tooltip.create(Component.translatable("gui.colony_nations.tax.same")));
+        } else {
+            taxApply.setTooltip(null);
+        }
     }
 
     private void offers() {
