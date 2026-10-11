@@ -29,7 +29,17 @@ public final class NationRegistry {
         if (idByName.containsKey(nameKey(normalized))) {
             throw new NationException(NationException.Reason.NAME_TAKEN);
         }
-        Nation nation = new Nation(UUID.randomUUID(), normalized, owner, color, null, Set.of(), 0L, createdGameTime);
+        Nation nation = new Nation(
+                UUID.randomUUID(),
+                normalized,
+                owner,
+                color,
+                null,
+                Set.of(),
+                0L,
+                createdGameTime,
+                Nation.DEFAULT_TAX_RATE,
+                null);
         index(nation);
         return nation;
     }
@@ -98,6 +108,12 @@ public final class NationRegistry {
 
     public Nation setTreasury(UUID nationId, long treasury) {
         Nation updated = requireNation(nationId).withTreasury(treasury);
+        nations.put(nationId, updated);
+        return updated;
+    }
+
+    public Nation setTax(UUID nationId, int taxRate, Long lastTaxChangeDay) {
+        Nation updated = requireNation(nationId).withTax(taxRate, lastTaxChangeDay);
         nations.put(nationId, updated);
         return updated;
     }

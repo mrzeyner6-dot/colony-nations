@@ -55,6 +55,19 @@ public final class Config {
 
     static {
         BUILDER.pop();
+        BUILDER.push("economy");
+    }
+
+    public static final ModConfigSpec.IntValue DEFAULT_TAX_RATE = BUILDER
+            .comment("Tax in spurs each adult citizen pays per day when a nation is founded.")
+            .defineInRange("defaultTaxRate", 2, 0, 1_000_000);
+
+    public static final ModConfigSpec.IntValue MAX_TAX_RATE = BUILDER
+            .comment("Highest tax rate an owner can set, in spurs per adult citizen per day.")
+            .defineInRange("maxTaxRate", 6, 0, 1_000_000);
+
+    static {
+        BUILDER.pop();
     }
 
     public static final ModConfigSpec SPEC = BUILDER.build();

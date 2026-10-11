@@ -19,8 +19,10 @@ import com.mrzeyner.colonynations.territory.TerritoryMap;
  * {@code NationSavedData} stores these bytes inside NBT so the round trip can be tested without Minecraft.
  */
 public final class NationCodec {
-    public static final int VERSION = 3;
+    public static final int VERSION = 4;
     private static final int VERSION_WITH_NATIONS_ONLY = 2;
+    private static final int VERSION_WITH_TERRITORY = 3;
+    private static final int VERSION_WITH_TAX = 4;
 
     static final Logger LOGGER = Logger.getLogger(NationCodec.class.getName());
 
@@ -31,7 +33,7 @@ public final class NationCodec {
             .thenComparingInt(ChunkRef::z);
 
     /**
-     * @param warning set when the payload version is neither 2 nor {@link #VERSION}; the registry is then empty
+     * @param warning set when the payload version is outside 2…{@link #VERSION}; the registry is then empty
      * @param preserved original payload bytes when {@code warning} is set, so a later save can write them back
      * @param version payload version that was read
      */
@@ -64,6 +66,13 @@ public final class NationCodec {
         return writeAt(VERSION_WITH_NATIONS_ONLY, registry, new TerritoryMap());
     }
 
+    /**
+     * Version 3 layout: nations without a tax rate, plus territory.
+     */
+    static byte[] writeVersion3(NationRegistry registry, TerritoryMap territory) {
+        return writeAt(VERSION_WITH_TERRITORY, registry, territory);
+    }
+
     private static byte[] writeAt(int version, NationRegistry registry, TerritoryMap territory) {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (DataOutputStream out = new DataOutputStream(bytes)) {
@@ -72,9 +81,9 @@ public final class NationCodec {
             nations.sort(Comparator.comparing(nation -> nation.id().toString()));
             out.writeInt(nations.size());
             for (Nation nation : nations) {
-                writeNation(out, nation);
+                writeNation(out, nation, version);
             }
-            if (version >= VERSION) {
+            if (version >= VERSION_WITH_TERRITORY) {
                 writeTerritory(out, territory);
             }
         } catch (IOException exception) {
@@ -104,7 +113,7 @@ public final class NationCodec {
     public static Loaded load(byte[] payload) {
         try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(payload))) {
             int version = in.readInt();
-            if (version != VERSION && version != VERSION_WITH_NATIONS_ONLY) {
+            if (version < VERSION_WITH_NATIONS_ONLY || version > VERSION) {
                 return new Loaded(
                         new NationRegistry(),
                         new TerritoryMap(),
@@ -117,18 +126,18 @@ public final class NationCodec {
             int count = in.readInt();
             List<Nation> nations = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
-                nations.add(readNation(in));
+                nations.add(readNation(in, version));
             }
             NationRegistry registry = new NationRegistry();
             registry.restore(nations);
-            TerritoryMap territory = version >= VERSION ? readTerritory(in) : new TerritoryMap();
+            TerritoryMap territory = version >= VERSION_WITH_TERRITORY ? readTerritory(in) : new TerritoryMap();
             return new Loaded(registry, territory, null, null, version);
         } catch (IOException exception) {
             throw new IllegalStateException("failed to read nations", exception);
         }
     }
 
-    private static void writeNation(DataOutputStream out, Nation nation) throws IOException {
+    private static void writeNation(DataOutputStream out, Nation nation, int version) throws IOException {
         out.writeUTF(nation.id().toString());
         out.writeUTF(nation.name());
         out.writeUTF(nation.owner().toString());
@@ -145,9 +154,17 @@ public final class NationCodec {
         }
         out.writeLong(nation.treasury());
         out.writeLong(nation.createdGameTime());
+        if (version >= VERSION_WITH_TAX) {
+            out.writeInt(nation.taxRate());
+            Long lastTaxChangeDay = nation.lastTaxChangeDay();
+            out.writeBoolean(lastTaxChangeDay != null);
+            if (lastTaxChangeDay != null) {
+                out.writeLong(lastTaxChangeDay);
+            }
+        }
     }
 
-    private static Nation readNation(DataInputStream in) throws IOException {
+    private static Nation readNation(DataInputStream in, int version) throws IOException {
         UUID id = UUID.fromString(in.readUTF());
         String name = in.readUTF();
         UUID owner = UUID.fromString(in.readUTF());
@@ -160,7 +177,15 @@ public final class NationCodec {
         }
         long treasury = in.readLong();
         long createdGameTime = in.readLong();
-        return new Nation(id, name, owner, color, capital, cities, treasury, createdGameTime);
+        int taxRate = Nation.DEFAULT_TAX_RATE;
+        Long lastTaxChangeDay = null;
+        if (version >= VERSION_WITH_TAX) {
+            taxRate = in.readInt();
+            if (in.readBoolean()) {
+                lastTaxChangeDay = in.readLong();
+            }
+        }
+        return new Nation(id, name, owner, color, capital, cities, treasury, createdGameTime, taxRate, lastTaxChangeDay);
     }
 
     private static void writeCity(DataOutputStream out, CityRef city) throws IOException {

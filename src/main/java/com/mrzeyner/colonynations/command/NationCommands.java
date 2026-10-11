@@ -16,6 +16,8 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mrzeyner.colonynations.ColonyNations;
 import com.mrzeyner.colonynations.Config;
 import com.mrzeyner.colonynations.compat.minecolonies.NationCityCommands;
+import com.mrzeyner.colonynations.compat.minecolonies.NationDaily;
+import com.mrzeyner.colonynations.compat.minecolonies.NationTaxCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationTerritoryCommands;
 import com.mrzeyner.colonynations.compat.minecolonies.NationUpkeep;
 import com.mrzeyner.colonynations.compat.minecolonies.TerritorySync;
@@ -78,6 +80,11 @@ public final class NationCommands {
                 .then(Commands.literal("annex").executes(NationTerritoryCommands::annex))
                 .then(Commands.literal("unannex").executes(NationTerritoryCommands::unannex))
                 .then(Commands.literal("territory").executes(NationTerritoryCommands::territory))
+                .then(Commands.literal("tax")
+                        .executes(NationTaxCommands::show)
+                        .then(Commands.literal("set")
+                                .then(Commands.argument("rate", IntegerArgumentType.integer(0))
+                                        .executes(NationTaxCommands::set))))
                 .then(Commands.literal("admin")
                         .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("name", StringArgumentType.string())
@@ -96,7 +103,9 @@ public final class NationCommands {
                                                         StringArgumentType.getString(ctx, "name"),
                                                         StringArgumentType.getString(ctx, "color"))))))
                         .then(Commands.literal("upkeep")
-                                .then(Commands.literal("run").executes(NationUpkeep::runCommand)))));
+                                .then(Commands.literal("run").executes(NationUpkeep::runCommand)))
+                        .then(Commands.literal("day")
+                                .then(Commands.literal("run").executes(NationDaily::runCommand)))));
     }
 
     private static int create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -115,6 +124,10 @@ public final class NationCommands {
                     player.getUUID(),
                     0xFFFFFF,
                     ctx.getSource().getLevel().getGameTime());
+            int taxRate = NationTaxCommands.foundingRate();
+            if (taxRate != nation.taxRate()) {
+                registry.setTax(nation.id(), taxRate, null);
+            }
             data.setDirty();
             return Messages.event(ctx.getSource(), "command.colony_nations.create.success", nation.name());
         } catch (NationException exception) {

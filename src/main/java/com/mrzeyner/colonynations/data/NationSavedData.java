@@ -65,6 +65,20 @@ public final class NationSavedData extends SavedData {
         setDirty();
     }
 
+    public List<PendingNotice> notices() {
+        return List.copyOf(notices);
+    }
+
+    /**
+     * Drops any notice with the same owner and translation key, then appends {@code notice}.
+     * Offline tax income uses this so several days stay one line.
+     */
+    public void replaceNotice(PendingNotice notice) {
+        notices.removeIf(existing -> existing.owner().equals(notice.owner()) && existing.key().equals(notice.key()));
+        notices.add(notice);
+        setDirty();
+    }
+
     public List<PendingNotice> takeNotices(UUID owner) {
         List<PendingNotice> mine = new ArrayList<>();
         notices.removeIf(notice -> {

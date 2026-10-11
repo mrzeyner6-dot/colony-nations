@@ -50,10 +50,35 @@ class NationCodecTerritoryTest {
         assertArrayEquals(bytes, NationCodec.write(registry, territory));
 
         NationCodec.Loaded loaded = NationCodec.load(bytes);
-        assertEquals(3, loaded.version());
+        assertEquals(NationCodec.VERSION, loaded.version());
         assertEquals(rome.id(), loaded.territory().owner(overworld).orElseThrow());
         assertEquals(gaul.id(), loaded.territory().owner(nether).orElseThrow());
         assertEquals(registry.byId(rome.id()).orElseThrow(), loaded.registry().byId(rome.id()).orElseThrow());
         assertArrayEquals(bytes, NationCodec.write(loaded));
+    }
+
+    @Test
+    void version3MigratesToTheDefaultTaxRate() {
+        NationRegistry registry = new NationRegistry();
+        Nation rome = registry.create("Rome", UUID.randomUUID(), 1, 1L);
+        registry.setTax(rome.id(), 5, 9L);
+        registry.addColony(rome.id(), new CityRef("minecraft:overworld", 4));
+        TerritoryMap territory = new TerritoryMap();
+        ChunkRef chunk = new ChunkRef("minecraft:overworld", 1, 2);
+        territory.claim(chunk, rome.id());
+
+        NationCodec.Loaded loaded = NationCodec.load(NationCodec.writeVersion3(registry, territory));
+
+        assertFalse(loaded.unreadable());
+        assertEquals(3, loaded.version());
+        Nation migrated = loaded.registry().byId(rome.id()).orElseThrow();
+        assertEquals(Nation.DEFAULT_TAX_RATE, migrated.taxRate());
+        assertEquals(null, migrated.lastTaxChangeDay());
+        assertEquals(rome.id(), loaded.territory().owner(chunk).orElseThrow());
+
+        NationCodec.Loaded again = NationCodec.load(NationCodec.write(loaded));
+        assertEquals(NationCodec.VERSION, again.version());
+        assertEquals(Nation.DEFAULT_TAX_RATE, again.registry().byId(rome.id()).orElseThrow().taxRate());
+        assertEquals(rome.id(), again.territory().owner(chunk).orElseThrow());
     }
 }
